@@ -1171,6 +1171,7 @@
                             <button class="tab-button active" onclick="switchTab('logs')">Logs</button>
                             <button class="tab-button" onclick="switchTab('workflows')">Workflows</button>
                             <button class="tab-button" onclick="switchTab('permissions')">Permissions</button>
+                            <button class="tab-button" onclick="switchTab('leads')">Leads</button>
                         </div>
                         <div class="item-badge" id="tab-action-badge">SYS ACTIVE</div>
                     </div>
@@ -1256,6 +1257,26 @@
                                 <input type="checkbox" checked>
                                 <span class="slider"></span>
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- 4. Leads Tab Content -->
+                    <div class="tab-content" id="tab-leads">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Banco de Leads</div>
+                            <button class="mic-btn" style="padding: 6px 12px; font-size: 11px;" onclick="requestLeadsRefresh()">Atualizar</button>
+                        </div>
+                        
+                        <div style="flex: 1; overflow-y: auto; padding-right: 4px;">
+                            <div style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 8px;">NOVOS LEADS (<span id="leads-new-count">0</span>)</div>
+                            <div id="leads-new-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+                                <!-- Populated dynamically -->
+                            </div>
+
+                            <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">LEADS ABORDADOS (<span id="leads-used-count">0</span>)</div>
+                            <div id="leads-used-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Populated dynamically -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1469,6 +1490,45 @@
         function updateVolume(vol) {
             audioVolume = vol;
         }
+
+        // --- Leads Database Functions ---
+        function requestLeadsRefresh() {
+            console.log("CMD:request_leads_refresh");
+        }
+
+        function updateLeadsData(leadsDataStr) {
+            try {
+                const data = typeof leadsDataStr === 'string' ? JSON.parse(leadsDataStr) : leadsDataStr;
+                
+                const newLeads = data.new || [];
+                const usedLeads = data.used || [];
+                
+                document.getElementById('leads-new-count').textContent = newLeads.length;
+                document.getElementById('leads-used-count').textContent = usedLeads.length;
+                
+                const renderLead = (lead, type) => {
+                    return `
+                        <div style="background: rgba(10,20,25,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="font-size: 12px; font-weight: 600; color: #fff;">${lead.name || 'Desconhecido'}</span>
+                                <span style="font-size: 10px; color: ${type === 'new' ? 'var(--accent-cyan)' : '#888'}; font-weight: 700;">${lead.phone || 'Sem número'}</span>
+                            </div>
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.6);">${lead.business_type || 'Negócio local'}</div>
+                        </div>
+                    `;
+                };
+                
+                const newListHTML = newLeads.map(l => renderLead(l, 'new')).join('');
+                document.getElementById('leads-new-list').innerHTML = newListHTML || '<div style="font-size: 11px; color: #666; font-style: italic;">Nenhum lead novo.</div>';
+                
+                const usedListHTML = usedLeads.map(l => renderLead(l, 'used')).join('');
+                document.getElementById('leads-used-list').innerHTML = usedListHTML || '<div style="font-size: 11px; color: #666; font-style: italic;">Nenhum lead abordado.</div>';
+                
+            } catch (e) {
+                console.error("Failed to parse leads data", e);
+            }
+        }
+        // --------------------------------
 
         // Toggles for Prospecting and WhatsApp Automation buttons
         let leadGenerationActive = false;

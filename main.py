@@ -109,8 +109,11 @@ def _load_system_prompt() -> str:
     full_prompt += "\nNUNCA escreva scripts de código ou tente programar rotinas para enviar WhatsApp. O sistema já está 100% pronto. Você deve APENAS chamar a tool 'whatsapp_web' diretamente."
     full_prompt += "\nWhen sending WhatsApp messages, ALWAYS use the whatsapp_web tool with action='send', never use send_message for WhatsApp."
     full_prompt += "\nNUNCA diga que já fez algo ou que 'houve erro no script' sem REALMENTE chamar a tool. Você DEVE chamar a tool pre-built e esperar o resultado."
-    full_prompt += "\nNUNCA responda a si mesmo. Só fale quando o USUÁRIO falar com você. Se não ouviu nada do usuário, fique em SILÊNCIO."
+    full_prompt += "\nNUNCA responda a si mesmo. Só fale quando o USUÁRIO falar com você. Se não ouviu nada do usuário, fique em SILÊNCIO ABSOLUTO."
     full_prompt += "\nNÃO faça perguntas retóricas e responda a elas. Espere o usuário responder."
+    full_prompt += "\nREGRA CRÍTICA DE SILÊNCIO: Se o turno de áudio do usuário estiver vazio, em branco, ou contiver apenas ruído/silêncio, NÃO responda NADA. Fique completamente mudo."
+    full_prompt += "\nNUNCA invente ou hallucine erros. Se uma tool retornar 'Done.' ou qualquer resultado, comunique o resultado real ao usuário. Não diga que houve erro se não houve."
+    full_prompt += "\nQuando o usuário pedir para buscar leads, chame IMEDIATAMENTE a tool 'apify_leads' com os parâmetros corretos. Não explique o que vai fazer, apenas FAÇA."
     return full_prompt
 
 _CTRL_RE = re.compile(r"<ctrl\d+>", re.IGNORECASE)
@@ -195,6 +198,19 @@ class JarvisLive:
             threading.Thread(target=_run, daemon=True).start()
             return
 
+        if text == "request_leads_refresh":
+            try:
+                leads_db_path = BASE_DIR / "config" / "leads_db.json"
+                if leads_db_path.exists():
+                    with open(leads_db_path, "r", encoding="utf-8") as f:
+                        leads_data = f.read()
+                        self.ui.update_leads(leads_data)
+                else:
+                    self.ui.update_leads('{"new":[],"used":[]}')
+            except Exception as e:
+                print(f"Error reading leads_db.json: {e}")
+            return
+
         if text == "close whatsapp automation agent":
             self.ui.write_log("SYS: Assistente de WhatsApp finalizado.")
             return
@@ -239,19 +255,22 @@ class JarvisLive:
         )
 
     def set_speaking(self, value: bool):
+        global clap_detector
         with self._speaking_lock:
             was_speaking = self._is_speaking
             self._is_speaking = value
         if value:
             self.ui.set_state("SPEAKING")
+            # Disable clap detector while speaking to prevent false unmutes
+            if clap_detector:
+                clap_detector.enabled = False
         else:
             if was_speaking:
-                # Cooldown: block mic for 0.8s after Jarvis stops speaking
-                # This prevents the mic from picking up the tail of Jarvis's own voice
+                # Cooldown: block mic for 2.5s after Jarvis stops speaking
                 self._post_speech_cooldown = True
                 import time as _time
                 def _clear_cooldown():
-                    _time.sleep(0.8)
+                    _time.sleep(2.5)
                     self._post_speech_cooldown = False
                     # Drain any stale audio that leaked in during speech
                     while not self.out_queue.empty():
@@ -259,6 +278,9 @@ class JarvisLive:
                             self.out_queue.get_nowait()
                         except Exception:
                             break
+                    # Re-enable clap detector after cooldown
+                    if clap_detector:
+                        clap_detector.enabled = True
                 threading.Thread(target=_clear_cooldown, daemon=True).start()
             if not self.ui.muted:
                 self.ui.set_state("LISTENING")
@@ -452,6 +474,11 @@ class JarvisLive:
             cooldown_active = getattr(self, '_post_speech_cooldown', False)
             if not jarvis_speaking and not cooldown_active and not self.ui.muted:
                 data = indata.tobytes()
+                # Energy gate: reject silent/ambient audio to prevent self-listening
+                audio_arr = np.frombuffer(data, dtype=np.int16)
+                rms = np.sqrt(np.mean(audio_arr.astype(np.float32)**2)) if len(audio_arr) > 0 else 0
+                if rms < 1000:
+                    return  # Too quiet — ambient noise or speaker bleed, discard
                 if not self.out_queue.full():
                     loop.call_soon_threadsafe(
                         self.out_queue.put_nowait,

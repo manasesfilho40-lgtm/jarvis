@@ -45,6 +45,7 @@ class JarvisUI(QObject):
     log_signal = pyqtSignal(bool, str)
     state_signal = pyqtSignal(str)
     volume_signal = pyqtSignal(float)
+    leads_signal = pyqtSignal(str)
 
     def __init__(self, face_image_path=None):
         super().__init__()
@@ -88,6 +89,7 @@ class JarvisUI(QObject):
         self.log_signal.connect(self._safe_write_log)
         self.state_signal.connect(self._safe_set_state)
         self.volume_signal.connect(self._safe_set_volume)
+        self.leads_signal.connect(self._safe_update_leads)
         
         # Load local HTML
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jarvis_ui.html"))
@@ -172,6 +174,9 @@ class JarvisUI(QObject):
 
     def set_volume(self, vol):
         self.volume_signal.emit(vol)
+        
+    def update_leads(self, leads_json_str):
+        self.leads_signal.emit(leads_json_str)
 
     def _safe_write_log(self, is_user, clean_msg):
         if not self._page_loaded:
@@ -190,6 +195,11 @@ class JarvisUI(QObject):
         self._current_volume = vol
         if self._page_loaded:
             js_code = f"updateVolume({vol});"
+            self.web_view.page().runJavaScript(js_code)
+            
+    def _safe_update_leads(self, leads_json_str):
+        if self._page_loaded:
+            js_code = f"updateLeadsData({json.dumps(leads_json_str)});"
             self.web_view.page().runJavaScript(js_code)
 
     def show(self):
