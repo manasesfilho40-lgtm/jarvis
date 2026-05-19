@@ -1,6 +1,5 @@
 import time
 from plyer import notification
-import winsound
 import threading
 
 # Keywords definition
@@ -9,9 +8,9 @@ REJECTION_KEYWORDS = ["caro", "depois", "não", "desisti", "caro", "agora não"]
 
 def play_alert_sound():
     try:
-        # Standard Windows alert sound
+        import winsound
         winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
-    except:
+    except Exception:
         pass
 
 def send_notification(title, message):

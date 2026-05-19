@@ -10,8 +10,6 @@ from PyQt6.QtCore import QUrl, pyqtSignal, QObject
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
-from PyQt6.QtGui import QIcon
-
 class RootWrapper(QObject):
     def __init__(self, window, app):
         super().__init__()
