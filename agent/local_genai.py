@@ -55,10 +55,10 @@ def get_routing_mode() -> str:
         settings_path = base_dir / "config" / "model_settings.json"
         if settings_path.exists():
             with open(settings_path, "r", encoding="utf-8") as f:
-                return json.load(f).get("routing_mode", "auto")
+                return json.load(f).get("routing_mode", "gemini")
     except:
         pass
-    return "auto"
+    return "gemini"
 
 def is_complex_task(prompt, system_instruction=""):
     prompt_upper = str(prompt).upper()

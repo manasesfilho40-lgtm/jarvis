@@ -228,7 +228,15 @@ class JarvisLive:
             return
             
         if not self._loop or not self.session:
-            self.ui.write_log(f"SYS: Offline. Executando '{text}' via cérebro local Llama 3...")
+            from agent.local_genai import get_routing_mode
+            mode = get_routing_mode()
+            if mode == "gemini":
+                brain_desc = "via cérebro na nuvem Gemini"
+            elif mode == "llama":
+                brain_desc = "via cérebro local Llama 3"
+            else:
+                brain_desc = "via cérebro híbrido (Gemini/Llama)"
+            self.ui.write_log(f"SYS: Offline. Executando '{text}' {brain_desc}...")
             from agent.task_queue import get_queue, TaskPriority
             def ui_speak(msg):
                 print(f"[JARVIS] 🗣️ {msg}")
