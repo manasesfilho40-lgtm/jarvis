@@ -1,0 +1,43 @@
+{
+  "identity": {
+    "business_name": {
+      "value": "Criativos de Moda Streetwear",
+      "updated": "2026-05-18"
+    },
+    "user_profession": {
+      "value": "Designer de criativos de alta conversão para marcas de vestuário masculino casual/streetwear.",
+      "updated": "2026-05-18"
+    },
+    "product_details": {
+      "value": "Transforma fotos simples/planas de roupas masculinas em anúncios de alto padrão cinematográfico/editorial.",
+      "updated": "2026-05-18"
+    },
+    "niche": {
+      "value": "Moda masculina casual/streetwear (evita roupas formais como ternos e gravatas).",
+      "updated": "2026-05-18"
+    },
+    "price_policy": {
+      "value": "R$ 150 por criativo/imagem, com desconto máximo de 20% (limite mínimo de R$ 120) para fechar com clientes indecisos.",
+      "updated": "2026-05-18"
+    }
+  },
+  "preferences": {
+    "default_open_apps": {
+      "value": "Spotify and Claud",
+      "updated": "2026-05-15"
+    },
+    "gaming_achievements": {
+      "value": "Completed games on medium and easy modes",
+      "updated": "2026-05-15"
+    }
+  },
+  "projects": {},
+  "relationships": {},
+  "wishes": {
+    "reactivate_with_claps": {
+      "value": "yes",
+      "updated": "2026-05-14"
+    }
+  },
+  "notes": {}
+}

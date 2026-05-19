@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS · OS X Command Center</title>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-sidebar: #050505;
+            --bg-panel: #000000;
+            --bg-card: #0a0a0a;
+            --border-color: rgba(255, 255, 255, 0.05);
+            --text-primary: #FFFFFF;
+            --text-secondary: rgba(255,255,255,0.7);
+            --accent-green: #FFFFFF;
+            --accent-green-bg: rgba(255, 255, 255, 0.05);
+            --accent-silver: rgba(255, 255, 255, 0.1);
+            --accent-teal: #FFFFFF;
+            --accent-cyan: #FFFFFF;
+        }
+
+
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: #000000; color: #ffffff; overflow: hidden; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 10, 15, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        /* macOS Window Frame Wrapper */
+        .app-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            background: transparent;
+            backdrop-filter: blur(12px) saturate(120%);
+            -webkit-backdrop-filter: blur(12px) saturate(120%);
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* -------------------------------------------------------------
+           LEFT SIDEBAR (~65px)
+           ------------------------------------------------------------- */
+        .sidebar {
+            width: 65px;
+            background-color: #050505;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 0;
+            position: relative;
+            z-index: 20;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            width: 100%;
+            align-items: center;
+        }
+
+        /* Glowing logo container in sidebar */
+        .logo-j-sidebar { width: 38px; height: 38px; background: #FFFFFF; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: #000000; font-size: 20px; font-weight: 900; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(255,255,255,0.1); }
+
+        .logo-j-sidebar:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.7);
+        }
+
+        .nav-item {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .nav-item:hover {
+            color: var(--accent-cyan);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-item.active { color: #000000; background: #FFFFFF; border-radius: 9999px; box-shadow: 0 4px 10px rgba(255,255,255,0.15); }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Rotated vertical label */
+        .vertical-label-container {
+            position: absolute;
+            left: 58px;
+            top: 55%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .vertical-label {
+            transform: rotate(270deg);
+            transform-origin: left center;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--accent-teal);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            white-space: nowrap;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.4);
+        }
+
+        /* -------------------------------------------------------------
+           CENTER PANEL (~280px)
+           ------------------------------------------------------------- */
+        .center-panel {
+            width: 280px;
+            background-color: #050505;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* macOS Traffic Light Buttons */
+        .window-header {
+            padding: 20px 24px 10px 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .traffic-lights {
+            display: flex;
+            gap: 8px;
+        }
+
+        .light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .light.red { background-color: #ff5f56; }
+        .light.yellow { background-color: #ffbd2e; }
+        .light.green { background-color: #27c93f; }
+
+        /* Panel Navigation List */
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+        }
+
+        .panel-section {
+            margin-bottom: 24px;
+        }
+
+        .section-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            padding-left: 8px;
+        }
+
+        .list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 9999px; cursor: pointer; transition: all 0.2s ease; margin-bottom: 2px; color: var(--text-secondary); }
+
+        .list-item:hover { background-color: rgba(255,255,255,0.05); color: var(--text-primary); border-radius: 9999px; }
+
+        .list-item.active { background-color: #000000; border: none; color: var(--text-primary); font-weight: 600; border-radius: 9999px; box-shadow: 0 2px 8px rgba(255,255,255,0.05); }
+
+        .item-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12.5px;
+        }
+
+        .item-left svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .item-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.08);
+            color: var(--accent-cyan);
+        }
+
+        .list-item.active .item-badge {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Search Bar inside Center Panel Bottom */
+        .search-container {
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-wrapper {
+            display: flex;
+            align-items: center;
+            background: rgba(10, 20, 25, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            width: 100%;
+            padding: 6px 12px;
+            transition: all 0.3s ease;
+        }
+
+        .search-wrapper:focus-within {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .search-wrapper svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--accent-cyan);
+            stroke-width: 2;
+            fill: none;
+            margin-right: 8px;
+        }
+
+        .search-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 12px;
+            width: 100%;
+            color: var(--text-primary);
+        }
+
+        /* -------------------------------------------------------------
+           RIGHT MAIN PANEL (DASHBOARD)
+           ------------------------------------------------------------- */
+        .main-panel {
+            flex: 1;
+            background-color: transparent;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Top Dashboard Header */
+        .dashboard-header {
+            padding: 32px 40px 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .neon-aggressive-title { font-size: 36px; font-weight: 900; letter-spacing: 4px; color: #ffffff; text-shadow: none; -webkit-text-stroke: 0; margin: 0; text-transform: uppercase; font-family: 'Inter', sans-serif; }
+
+        .header-title-area p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.2);
+        }
+
+        .time-badge {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid var(--accent-cyan);
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--accent-cyan);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+            text-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Main Scrollable Content Area */
+        .dashboard-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 40px 40px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Double Column Grid: Left Sphere / Right Info cards */
+        .hero-row {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        /* Circular Holographic Sphere Card */
+        .sphere-card { background: #080808; border: 1px solid var(--border-color); border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; min-height: 380px; box-shadow: 0 10px 30px rgba(255,255,255,0.03); }
+
+        .sphere-card:hover {
+            border-color: rgba(255,255,255,0.1) !important;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+        }
+
+        .canvas-container {
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #webgl-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .sphere-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .speak-btn {
+            background: #FFFFFF;
+            color: #000000;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .speak-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(255, 255, 255, 0.5);
+        }
+
+        .speak-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* System Stat Cards Grid */
+        .stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            justify-content: space-between;
+        }
+
+        .stat-card {
+            background: #080808;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 18px 22px;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stat-card:hover {
+            border-color: rgba(255,255,255,0.1) !important;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+        }
+
+        .stat-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .stat-subtext {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+        }
+
+        .stat-icon-wrapper {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background-color: rgba(10, 20, 25, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-icon-wrapper svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .stat-card.active-status {
+            border-color: rgba(255,255,255,0.1) !important;
+            background: linear-gradient(135deg, rgba(15, 35, 40, 0.7) 0%, rgba(255, 255, 255, 0.05) 100%);
+        }
+
+        .stat-card.active-status .stat-icon-wrapper {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: var(--accent-teal);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .status-pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-cyan);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--accent-cyan);
+            animation: pulse-teal 2s infinite ease-in-out;
+            margin-right: 6px;
+        }
+
+        @keyframes pulse-teal {
+            0% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 4px var(--accent-cyan); }
+            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px var(--accent-cyan); }
+            100% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 4px var(--accent-cyan); }
+        }
+
+        /* -------------------------------------------------------------
+           TABS SECTION (Workflows / Permissions / Logs)
+           ------------------------------------------------------------- */
+        .tabs-card {
+            background: #080808;
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 320px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tabs-card:hover {
+            border-color: rgba(255,255,255,0.1) !important;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+        }
+
+        .tabs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: rgba(10, 25, 30, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .tabs-list {
+            display: flex;
+            gap: 4px;
+        }
+
+        .tab-button {
+            border: none;
+            outline: none;
+            background: transparent;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-button:hover {
+            color: var(--accent-teal);
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .tab-button.active {
+            color: var(--text-primary);
+            background-color: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 1. Logs Content View (Chat Area) */
+        .logs-viewport {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 220px;
+            padding-right: 4px;
+        }
+
+        .log-row {
+            display: flex;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            line-height: 1.4;
+            max-width: 85%;
+        }
+
+        .log-row.user {
+            align-self: flex-end;
+            background: #FFFFFF;
+            color: #000000;
+            font-weight: 500;
+            border: none;
+            border-bottom-right-radius: 2px;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+            animation: message-fade-in 0.35s ease-out both;
+        }
+
+        .log-row.jarvis {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-bottom-left-radius: 2px;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            animation: message-fade-in 0.35s ease-out both;
+        }
+
+        @keyframes message-fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.97);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .log-role {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+        
+        .log-row.user .log-role {
+            color: #000000;
+            opacity: 0.8;
+            font-weight: 800;
+        }
+
+        .log-row.jarvis .log-role {
+            color: var(--accent-teal);
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Logs console input */
+        .tab-input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            padding-top: 16px;
+            align-items: center;
+        }
+
+        .console-input-wrapper {
+            flex: 1;
+            background-color: rgba(10, 20, 25, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .console-input-wrapper:focus-within {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+
+        .console-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            width: 100%;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .mic-btn { display: flex; align-items: center; gap: 8px; background: #FFFFFF; color: #000000; padding: 10px 24px; border-radius: 9999px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(255,255,255,0.1); z-index: 10; }
+
+        .mic-btn:hover {
+            border-color: var(--accent-teal);
+            color: var(--accent-teal);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+
+        .mic-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .console-send-btn {
+            background: #FFFFFF;
+            border: none;
+            color: #000000;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+
+        .console-send-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
+        }
+
+        .console-send-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* 2. Workflows Tab View */
+        .workflow-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: rgba(10, 20, 25, 0.4);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .workflow-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+        }
+
+        .workflow-details {
+            flex: 1;
+        }
+
+        .workflow-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .workflow-desc {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .workflow-toggle {
+            cursor: pointer;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.08);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .workflow-toggle:hover, .workflow-toggle.active {
+            background: #FFFFFF;
+            color: #000000;
+            border-color: transparent;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+        }
+
+        /* 3. Permissions Tab View */
+        .permission-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: rgba(10, 20, 25, 0.4);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .permission-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .permission-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .permission-desc {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            max-width: 80%;
+        }
+
+        /* Modern Slide Switches */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 22px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(10, 20, 25, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--accent-cyan);
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+            background-color: var(--accent-teal);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+        }
+
+        /* Mini switch for list items */
+        .switch.mini-switch {
+            width: 32px;
+            height: 18px;
+        }
+
+        .switch.mini-switch .slider:before {
+            height: 10px;
+            width: 10px;
+            left: 3px;
+            bottom: 3px;
+        }
+
+        .switch.mini-switch input:checked + .slider:before {
+            transform: translateX(14px);
+        }
+
+        /* Bottom Status bar for PyQt6 state display */
+        .bottom-hud-status {
+            padding: 10px 40px;
+            background-color: rgba(4, 10, 15, 0.85);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(12px);
+        }
+
+        .hud-dot-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- -------------------------------------------------------------
+             1. LEFT SIDEBAR (Dark Theme)
+             ------------------------------------------------------------- -->
+        <nav class="sidebar">
+            <div class="nav-list">
+                <!-- Star Icon (Logo/Active) -->
+                <div class="nav-item active" onclick="selectNavItem(this); switchTab('logs')">
+                    <svg viewBox="0 0 24 24">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+                <!-- Home Icon -->
+                <div class="nav-item" onclick="selectNavItem(this); switchTab('logs')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </div>
+                <!-- Globe Icon -->
+                <div class="nav-item" onclick="selectNavItem(this); quickCommand('open brave browser search')">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                </div>
+                <!-- Share Icon -->
+                <div class="nav-item" onclick="selectNavItem(this); quickCommand('open share settings')">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                </div>
+                <!-- Layers Icon -->
+                <div class="nav-item" onclick="selectNavItem(this); switchTab('workflows')">
+                    <svg viewBox="0 0 24 24">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+                <!-- Cube Icon -->
+                <div class="nav-item" onclick="selectNavItem(this); switchTab('permissions')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Settings Icon at Bottom -->
+            <div class="nav-item" onclick="selectNavItem(this); switchTab('permissions')">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </div>
+
+            <!-- Pill-shaped vertical text label rotated -->
+            <div class="vertical-label-container">
+                <div class="vertical-label">JARVIS NAV</div>
+            </div>
+        </nav>
+
+        <!-- -------------------------------------------------------------
+             2. CENTER PANEL (Commands, Status, History, Quick Actions)
+             ------------------------------------------------------------- -->
+        <aside class="center-panel">
+            <!-- macOS Traffic Lights -->
+            <div class="window-header">
+                <div class="traffic-lights">
+                    <span class="light red"></span>
+                    <span class="light yellow"></span>
+                    <span class="light green"></span>
+                </div>
+            </div>
+
+            <!-- Scrollable Navigation Items -->
+            <div class="panel-content" id="sidebar-items">
+                <!-- Section: Commands -->
+                <div class="panel-section">
+                    <div class="section-label">Commands</div>
+                    
+                    <div class="list-item" onclick="triggerLeadGeneration()">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            <span>Prospecção de Leads</span>
+                        </div>
+                        <label class="switch mini-switch">
+                            <input type="checkbox" id="switch-leads" style="pointer-events: none;">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="list-item" onclick="triggerWhatsappAutomation()">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                            <span>Disparo WhatsApp</span>
+                        </div>
+                        <label class="switch mini-switch">
+                            <input type="checkbox" id="switch-whatsapp" style="pointer-events: none;">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Section: Status -->
+                <div class="panel-section">
+                    <div class="section-label">Status</div>
+                    
+                    <div class="list-item active" onclick="triggerNeuralMechanism()">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                            <span>Mecanismo Neural</span>
+                        </div>
+                        <label class="switch mini-switch">
+                            <input type="checkbox" id="switch-neural" checked style="pointer-events: none;">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="list-item active" onclick="triggerGeminiLive()">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"/></svg>
+                            <span>Gemini Live Link</span>
+                        </div>
+                        <label class="switch mini-switch">
+                            <input type="checkbox" id="switch-gemini" checked style="pointer-events: none;">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Section: History -->
+                <div class="panel-section">
+                    <div class="section-label">History</div>
+                    
+                    <div class="list-item" onclick="switchTab('logs')">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                            <span>Logs de Execuções</span>
+                        </div>
+                        <span class="item-badge" id="badge-logs-count">0</span>
+                    </div>
+                </div>
+
+                <!-- Section: Quick Actions -->
+                <div class="panel-section">
+                    <div class="section-label">Quick Actions</div>
+                    
+                    <div class="list-item" onclick="quickCommand('memory status')">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>
+                            <span>Memory Status</span>
+                        </div>
+                    </div>
+
+                    <div class="list-item" onclick="quickCommand('show insights')">
+                        <div class="item-left">
+                            <svg viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/></svg>
+                            <span>System Insights</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Command Search Bar at Bottom -->
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" class="search-input" id="search-commands" placeholder="Procurar comando..." onkeyup="filterItems(this.value)">
+                </div>
+            </div>
+        </aside>
+
+        <!-- -------------------------------------------------------------
+             3. RIGHT MAIN PANEL (Content & STATS & WebGL Core)
+             ------------------------------------------------------------- -->
+        <main class="main-panel">
+            
+            <!-- Header section -->
+            <header class="dashboard-header">
+                <div class="header-title-area">
+                    <h1 class="neon-aggressive-title">JARVIS</h1>
+                    <p>A.I. SYSTEM · MARK XXXIX</p>
+                </div>
+                <div class="time-badge" id="time-display">00:00:00</div>
+            </header>
+
+            <!-- Main Scroll Area -->
+            <div class="dashboard-content">
+                
+                <!-- Hero row: 3D Sphere widget + Stats grid -->
+                <div class="hero-row">
+                    <!-- WebGL Core Card -->
+                    <div class="sphere-card">
+                        <div class="canvas-container">
+                            <canvas id="webgl-canvas"></canvas>
+                        </div>
+                        <div class="sphere-controls">
+                            <button class="speak-btn" id="mic-trigger" onclick="handleMicTrigger()">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M12,14A3,3 0 0,0 15,11V5A3,3 0 0,0 12,2A3,3 0 0,0 9,5V11A3,3 0 0,0 12,14M17.3,11C17.3,14 14.76,16.2 12,16.2C9.24,16.2 6.7,14 6.7,11H5C5,14.41 7.72,17.23 11,17.72V21H13V17.72C16.28,17.23 19,14.41 19,11H17.3Z" />
+                                </svg>
+                                <span id="speak-btn-text">Falar com Jarvis</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- System Stats Column -->
+                    <div class="stats-grid">
+                        <!-- Stat: Executions -->
+                        <div class="stat-card">
+                            <div class="stat-left">
+                                <span class="stat-label">Execuções</span>
+                                <span class="stat-value" id="execution-count">142</span>
+                                <span class="stat-subtext">Comandos efetuados com sucesso</span>
+                            </div>
+                            <div class="stat-icon-wrapper">
+                                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            </div>
+                        </div>
+
+                        <!-- Stat: Last Command -->
+                        <div class="stat-card">
+                            <div class="stat-left">
+                                <span class="stat-label">Último Comando</span>
+                                <span class="stat-value" id="last-command" style="font-size: 14px; font-weight: 700; margin-top: 4px;">Buscar Leads</span>
+                                <span class="stat-subtext" id="last-command-time">Agora mesmo</span>
+                            </div>
+                            <div class="stat-icon-wrapper">
+                                <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            </div>
+                        </div>
+
+                        <!-- Stat: System Status -->
+                        <div class="stat-card active-status">
+                            <div class="stat-left">
+                                <span class="stat-label">Status do Sistema</span>
+                                <div style="display: flex; align-items: center; margin-top: 4px;">
+                                    <span class="status-pulse-dot"></span>
+                                    <span class="stat-value" id="system-status-hud" style="font-size: 16px;">SISTEMA ATIVO</span>
+                                </div>
+                                <span class="stat-subtext">Monitoramento active</span>
+                            </div>
+                            <div class="stat-icon-wrapper">
+                                <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs Card (Workflows / Permissions / Logs) -->
+                <div class="tabs-card">
+                    <div class="tabs-header">
+                        <div class="tabs-list">
+                            <button class="tab-button active" onclick="switchTab('logs')">Logs</button>
+                            <button class="tab-button" onclick="switchTab('workflows')">Workflows</button>
+                            <button class="tab-button" onclick="switchTab('permissions')">Permissions</button>
+                        </div>
+                        <div class="item-badge" id="tab-action-badge">SYS ACTIVE</div>
+                    </div>
+
+                    <!-- 1. Logs Tab Content -->
+                    <div class="tab-content active" id="tab-logs">
+                        <div class="logs-viewport" id="message-container">
+                            <!-- Populated dynamically via addLog -->
+                            <div class="log-row jarvis">
+                                <div>
+                                    <div class="log-role">Jarvis</div>
+                                    <div>Mecanismo Neural Stark Mark XXXIX iniciado. Aguardando comandos de voz ou texto.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Console text input -->
+                        <div class="tab-input-area">
+                            <div class="console-input-wrapper">
+                                <input type="text" class="console-input" id="chat-input" placeholder="Digite uma instrução para o Jarvis..." onkeypress="handleInputKey(event)">
+                            </div>
+                            <button class="console-send-btn" onclick="sendInput()">
+                                <svg viewBox="0 0 24 24"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Workflows Tab Content -->
+                    <div class="tab-content" id="tab-workflows">
+                        <div class="workflow-item">
+                            <div class="workflow-icon">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <div class="workflow-details">
+                                <div class="workflow-title">Prospecção de Leads</div>
+                                <div class="workflow-desc">Mineração e extração autônoma utilizando Apify Actor</div>
+                            </div>
+                            <button class="workflow-toggle" id="workflow-leads-btn" onclick="triggerLeadGeneration()">Executar</button>
+                        </div>
+
+                        <div class="workflow-item">
+                            <div class="workflow-icon">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            </div>
+                            <div class="workflow-details">
+                                <div class="workflow-title">Automação de Mensagens</div>
+                                <div class="workflow-desc">Envios de abordagens customizadas no WhatsApp Web</div>
+                            </div>
+                            <button class="workflow-toggle" id="workflow-wa-btn" onclick="triggerWhatsappAutomation()">Executar</button>
+                        </div>
+                    </div>
+
+                    <!-- 3. Permissions Tab Content -->
+                    <div class="tab-content" id="tab-permissions">
+                        <div class="permission-row">
+                            <div class="permission-info">
+                                <div class="permission-name">Controle do Navegador (Brave)</div>
+                                <div class="permission-desc">Permitir que o Jarvis controle o navegador para pesquisas e automações</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked disabled>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="permission-row">
+                            <div class="permission-info">
+                                <div class="permission-name">Automação do Mouse e Teclado</div>
+                                <div class="permission-desc">Simulação de cliques físicos no Spotify, WhatsApp e pastas</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="permission-row">
+                            <div class="permission-info">
+                                <div class="permission-name">Visão Computacional (Screen Process)</div>
+                                <div class="permission-desc">Processamento de telas ativas e detecção ótica</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom HUD Bar -->
+            <footer class="bottom-hud-status">
+                <div class="hud-dot-container">
+                    <span class="status-pulse-dot" id="status-hud-dot"></span>
+                    <span class="status-text" id="status-hud-text">SISTEMA OPERACIONAL ATIVO</span>
+                </div>
+                <div>MARCOS XXXIX · SECURE LINK</div>
+            </footer>
+        </main>
+
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // Real-time local time tracking
+        function updateTime() {
+            const timeDisplay = document.getElementById('time-display');
+            const now = new Date();
+            timeDisplay.textContent = now.toLocaleTimeString('pt-BR', { hour12: false });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // switch main navigation tabs (Logs / Workflows / Permissions)
+        function switchTab(tabId) {
+            // Remove active classes
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Activate target
+            let targetButton = Array.from(document.querySelectorAll('.tab-button')).find(btn => btn.textContent.toLowerCase() === tabId);
+            if (targetButton) targetButton.classList.add('active');
+            
+            const targetContent = document.getElementById(`tab-${tabId}`);
+            if (targetContent) targetContent.classList.add('active');
+
+            // Update badge
+            document.getElementById('tab-action-badge').textContent = `VIEW: ${tabId.toUpperCase()}`;
+        }
+
+        // Quick Command Handler
+        function quickCommand(cmd) {
+            console.log("CMD:" + cmd);
+            addLog(true, cmd);
+            switchTab('logs');
+        }
+
+        // Send Input Handler
+        function sendInput() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (text) {
+                console.log("CMD:" + text);
+                addLog(true, text);
+                input.value = '';
+            }
+        }
+
+        function handleInputKey(event) {
+            if (event.key === 'Enter') {
+                sendInput();
+            }
+        }
+
+        let totalExecutions = 142;
+        let logsCount = 1;
+
+        // Dynamic logger function called by Python framework
+        function addLog(isUser, message) {
+            const container = document.getElementById('message-container');
+            const row = document.createElement('div');
+            row.className = `log-row ${isUser ? 'user' : 'jarvis'}`;
+            
+            const contentDiv = document.createElement('div');
+            const roleDiv = document.createElement('div');
+            roleDiv.className = 'log-role';
+            roleDiv.textContent = isUser ? 'Você' : 'Jarvis';
+            
+            const textDiv = document.createElement('div');
+            textDiv.textContent = message;
+            
+            contentDiv.appendChild(roleDiv);
+            contentDiv.appendChild(textDiv);
+            row.appendChild(contentDiv);
+            container.appendChild(row);
+            
+            // Auto scroll log frame
+            container.scrollTop = container.scrollHeight;
+
+            // Increment execution indicators
+            if (isUser) {
+                totalExecutions++;
+                document.getElementById('execution-count').textContent = totalExecutions;
+                document.getElementById('last-command').textContent = message.length > 25 ? message.substring(0, 22) + "..." : message;
+                document.getElementById('last-command-time').textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            }
+            
+            logsCount++;
+            document.getElementById('badge-logs-count').textContent = logsCount;
+        }
+
+        // Trigger microphone button
+        function handleMicTrigger() {
+            console.log("CMD:speak_trigger");
+        }
+
+        // Filter center-panel commands list
+        function filterItems(query) {
+            const cleanQuery = query.toLowerCase();
+            document.querySelectorAll('.list-item').forEach(item => {
+                const text = item.querySelector('span').textContent.toLowerCase();
+                if (text.includes(cleanQuery)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Python States Interface
+        let currentSystemState = "LISTENING";
+        
+        function updateState(state) {
+            currentSystemState = state;
+            
+            // Update button texts and dashboard badges
+            const btnText = document.getElementById('speak-btn-text');
+            const micBtn = document.getElementById('mic-trigger');
+            const hudText = document.getElementById('status-hud-text');
+            const hudDot = document.getElementById('status-hud-dot');
+            const stateHud = document.getElementById('system-status-hud');
+            
+            // Sidebar neural items sync
+            const neuralSwitch = document.getElementById('switch-neural');
+            const neuralListItem = neuralSwitch.closest('.list-item');
+            
+            // Premium Stark SVG icons for active vs muted states
+            const activeMicSVG = '<svg viewBox="0 0 24 24"><path d="M12,14A3,3 0 0,0 15,11V5A3,3 0 0,0 12,2A3,3 0 0,0 9,5V11A3,3 0 0,0 12,14M17.3,11C17.3,14 14.76,16.2 12,16.2C9.24,16.2 6.7,14 6.7,11H5C5,14.41 7.72,17.23 11,17.72V21H13V17.72C16.28,17.23 19,14.41 19,11H17.3Z" /></svg>';
+            const mutedMicSVG = '<svg viewBox="0 0 24 24"><path d="M19,11H17.3C17.3,11.74 17.14,12.43 16.87,13.05L18.1,14.28C18.66,13.3 19,12.19 19,11M12,14A3,3 0 0,0 15,11V7.82L9.82,2.64C10.45,2.23 11.2,2 12,2A3,3 0 0,0 9,5V6L12,9M2.81,3.19L1.39,4.61L9.1,12.3C9.13,13.24 9.9,14 10.85,14C11.38,14 11.85,13.76 12.18,13.38L14.38,15.58C13.67,16.03 12.87,16.2 12,16.2C9.24,16.2 6.7,14 6.7,11H5C5,14.41 7.72,17.23 11,17.72V21H13V17.72C14.06,17.56 15.05,17.18 15.93,16.63L19.39,20.09L20.81,18.68L2.81,3.19Z" /></svg>';
+            
+            const existingSvg = micBtn.querySelector('svg');
+
+            if (state === "SPEAKING") {
+                btnText.textContent = "Jarvis Falando...";
+                micBtn.style.background = "#ffffff";
+                micBtn.style.color = "#000000";
+                micBtn.style.border = "none";
+                micBtn.style.boxShadow = "0 0 25px rgba(255, 255, 255, 0.9)";
+                if (existingSvg) existingSvg.outerHTML = activeMicSVG;
+                
+                stateHud.textContent = "JARVIS FALANDO";
+                hudText.textContent = "JARVIS RESPONDENDO AO COMANDO";
+                hudDot.style.background = "#ffffff";
+                hudDot.style.boxShadow = "0 0 8px #ffffff";
+                neuralSwitch.checked = true;
+                neuralListItem.classList.add('active');
+            } else if (state === "THINKING") {
+                btnText.textContent = "Analisando...";
+                micBtn.style.background = "rgba(255, 255, 255, 0.15)";
+                micBtn.style.color = "#ffffff";
+                micBtn.style.border = "1px dashed rgba(255, 255, 255, 0.5)";
+                micBtn.style.boxShadow = "0 0 10px rgba(255, 255, 255, 0.25)";
+                if (existingSvg) existingSvg.outerHTML = activeMicSVG;
+                
+                stateHud.textContent = "JARVIS PROCESSANDO";
+                hudText.textContent = "JARVIS PROCESSANDO DADOS NEURAIS";
+                hudDot.style.background = "#ffffff";
+                hudDot.style.boxShadow = "0 0 8px #ffffff";
+                neuralSwitch.checked = true;
+                neuralListItem.classList.add('active');
+            } else if (state === "MUTED") {
+                btnText.textContent = "Microfone Mutado";
+                micBtn.style.background = "rgba(239, 68, 68, 0.12)";
+                micBtn.style.color = "#ef4444";
+                micBtn.style.border = "1px solid rgba(239, 68, 68, 0.4)";
+                micBtn.style.boxShadow = "0 0 15px rgba(239, 68, 68, 0.25)";
+                if (existingSvg) existingSvg.outerHTML = mutedMicSVG;
+                
+                stateHud.textContent = "SISTEMA MUTADO";
+                hudText.textContent = "MODO DE ESCUTA SILENCIADO";
+                hudDot.style.background = "#ef4444";
+                hudDot.style.boxShadow = "0 0 8px #ef4444";
+                neuralSwitch.checked = false;
+                neuralListItem.classList.remove('active');
+            } else { // LISTENING / default
+                btnText.textContent = "Falar com Jarvis";
+                micBtn.style.background = "#ffffff";
+                micBtn.style.color = "#000000";
+                micBtn.style.border = "none";
+                micBtn.style.boxShadow = "0 0 15px rgba(255, 255, 255, 0.6)";
+                if (existingSvg) existingSvg.outerHTML = activeMicSVG;
+                
+                stateHud.textContent = "SISTEMA ATIVO";
+                hudText.textContent = "SISTEMA OPERACIONAL ATIVO";
+                hudDot.style.background = "#ffffff";
+                hudDot.style.boxShadow = "0 0 8px #ffffff";
+                neuralSwitch.checked = true;
+                neuralListItem.classList.add('active');
+            }
+        }
+
+        let audioVolume = 0.0;
+        function updateVolume(vol) {
+            audioVolume = vol;
+        }
+
+        // Toggles for Prospecting and WhatsApp Automation buttons
+        let leadGenerationActive = false;
+        let whatsappAutomationActive = false;
+
+        function triggerLeadGeneration() {
+            leadGenerationActive = !leadGenerationActive;
+            const checkbox = document.getElementById('switch-leads');
+            const listItem = checkbox.closest('.list-item');
+            const btn = document.getElementById('workflow-leads-btn');
+            
+            checkbox.checked = leadGenerationActive;
+            
+            if (leadGenerationActive) {
+                listItem.classList.add('active');
+                if (btn) {
+                    btn.classList.add('active');
+                    btn.textContent = "Parar";
+                }
+                addLog(false, "SYS: Iniciando busca automatizada de leads...");
+                console.log("CMD:start lead generation prospecting");
+            } else {
+                listItem.classList.remove('active');
+                if (btn) {
+                    btn.classList.remove('active');
+                    btn.textContent = "Executar";
+                }
+                addLog(false, "SYS: Busca de leads desativada.");
+                console.log("CMD:stop lead generation prospecting");
+            }
+        }
+
+        function triggerWhatsappAutomation() {
+            whatsappAutomationActive = !whatsappAutomationActive;
+            const checkbox = document.getElementById('switch-whatsapp');
+            const listItem = checkbox.closest('.list-item');
+            const btn = document.getElementById('workflow-wa-btn');
+            
+            checkbox.checked = whatsappAutomationActive;
+            
+            if (whatsappAutomationActive) {
+                listItem.classList.add('active');
+                if (btn) {
+                    btn.classList.add('active');
+                    btn.textContent = "Parar";
+                }
+                addLog(false, "SYS: Iniciando disparo automatizado de abordagens no WhatsApp...");
+                console.log("CMD:open whatsapp automation agent");
+            } else {
+                listItem.classList.remove('active');
+                if (btn) {
+                    btn.classList.remove('active');
+                    btn.textContent = "Executar";
+                }
+                addLog(false, "SYS: Automação de abordagens desativada.");
+                console.log("CMD:close whatsapp automation agent");
+            }
+        }
+
+        function triggerNeuralMechanism() {
+            handleMicTrigger();
+        }
+
+        let geminiLiveActive = true;
+        function triggerGeminiLive() {
+            geminiLiveActive = !geminiLiveActive;
+            const checkbox = document.getElementById('switch-gemini');
+            const listItem = checkbox.closest('.list-item');
+            
+            checkbox.checked = geminiLiveActive;
+            
+            if (geminiLiveActive) {
+                listItem.classList.add('active');
+                addLog(false, "SYS: Conexão Gemini Live restabelecida.");
+                console.log("CMD:connect_live_link");
+                updateState("LISTENING");
+            } else {
+                listItem.classList.remove('active');
+                addLog(false, "SYS: Conexão Gemini Live suspensa.");
+                console.log("CMD:disconnect_live_link");
+                updateState("MUTED");
+            }
+        }
+
+        function selectNavItem(element) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        // -------------------------------------------------------------
+        // WebGL Three.js 3D Spiky organic sphere (Pure Glowing White Star Core)
+        // -------------------------------------------------------------
+        const canvas = document.getElementById('webgl-canvas');
+        const container = canvas.parentElement;
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        
+        // Match retina display
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(container.clientWidth, container.clientHeight);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.z = 5.2;
+
+        // Custom Shader Material for the spiky sphere
+        const spikeShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0.0 },
+                uAudioIntensity: { value: 0.0 },
+                uColor: { value: new THREE.Color('#ffffff') }, // Glowing cyan base color
+                uAccentColor: { value: new THREE.Color('#ffffff') } // Glowing pure red active underglow
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                varying vec3 vWorldPosition;
+                varying float vDisplacement;
+
+                uniform float uTime;
+                uniform float uAudioIntensity;
+
+                // McEwan 3D Simplex Noise generator
+                vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+                vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+                float snoise(vec3 v){
+                  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+                  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+                  vec3 i  = floor(v + dot(v, C.yyy) );
+                  vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+                  vec3 g = step(x0.yzx, x0.xyz);
+                  vec3 l = 1.0 - g;
+                  vec3 i1 = min( g.xyz, l.zxy );
+                  vec3 i2 = max( g.xyz, l.zxy );
+
+                  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+                  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+                  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+
+                  i = mod(i, 289.0 );
+                  vec4 p = permute( permute( permute(
+                             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                           + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
+                           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+                  float n_ = 0.142857142857;
+                  vec3  ns = n_ * D.wyz - D.xzx;
+
+                  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+
+                  vec4 x_ = floor(j * ns.z);
+                  vec4 y_ = floor(j - 7.0 * x_ );
+
+                  vec4 x = x_ *ns.x + ns.yyyy;
+                  vec4 y = y_ *ns.x + ns.yyyy;
+                  vec4 h = 1.0 - abs(x) - abs(y);
+
+                  vec4 b0 = vec4( x.xy, y.xy );
+                  vec4 b1 = vec4( x.zw, y.zw );
+
+                  vec4 s0 = floor(b0)*2.0 + 1.0;
+                  vec4 s1 = floor(b1)*2.0 + 1.0;
+                  vec4 sh = -step(h, vec4(0.0));
+
+                  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+                  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+                  vec3 p0 = vec3(a0.xy,h.x);
+                  vec3 p1 = vec3(a0.zw,h.y);
+                  vec3 p2 = vec3(a1.xy,h.z);
+                  vec3 p3 = vec3(a1.zw,h.w);
+
+                  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                  p0 *= norm.x;
+                  p1 *= norm.y;
+                  p2 *= norm.z;
+                  p3 *= norm.w;
+
+                  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                  m = m * m;
+                  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
+                                                dot(p2,x2), dot(p3,x3) ) );
+                }
+
+                float getDisplacement(vec3 p) {
+                    // Combine low & high frequency simplex noises for dense organic spikes
+                    float wave = snoise(p * 2.2 + uTime * 0.95) * 0.12;
+                    float nSpike = snoise(p * 7.5 - uTime * 1.5);
+                    
+                    // Normalize spike noise (0.0 to 1.0)
+                    float vSpike = max(0.0, nSpike * 0.5 + 0.5);
+                    
+                    // Create sharp, hair-like spiky tips
+                    float spikes = pow(vSpike, 5.0) * 0.45;
+                    
+                    float base = 0.02;
+                    float scale = 0.8 + uAudioIntensity * 1.5;
+                    
+                    return base + wave + spikes * scale;
+                }
+
+                void main() {
+                    // Estimate the new normal of displaced geometry using Finite Differences
+                    vec3 tangent = vec3(0.0);
+                    vec3 bitangent = vec3(0.0);
+                    vec3 helper = vec3(1.0, 0.0, 0.0);
+                    if (abs(normal.x) > 0.9) {
+                        helper = vec3(0.0, 1.0, 0.0);
+                    }
+                    tangent = normalize(cross(normal, helper));
+                    bitangent = normalize(cross(normal, tangent));
+                    
+                    float eps = 0.015;
+                    vec3 p0 = position;
+                    vec3 p1 = position + tangent * eps;
+                    vec3 p2 = position + bitangent * eps;
+                    
+                    float d0 = getDisplacement(p0);
+                    float d1 = getDisplacement(p1);
+                    float d2 = getDisplacement(p2);
+                    
+                    vec3 displacedP0 = p0 + normalize(p0) * d0;
+                    vec3 displacedP1 = p1 + normalize(p1) * d1;
+                    vec3 displacedP2 = p2 + normalize(p2) * d2;
+                    
+                    // Calculate correct tangent normal for super sharp specular highlights
+                    vec3 newNormal = normalize(cross(displacedP1 - displacedP0, displacedP2 - displacedP0));
+                    
+                    vNormal = normalMatrix * newNormal;
+                    vDisplacement = d0;
+                    
+                    vec4 mvPosition = modelViewMatrix * vec4(displacedP0, 1.0);
+                    vViewPosition = -mvPosition.xyz;
+                    vWorldPosition = (modelMatrix * vec4(displacedP0, 1.0)).xyz;
+                    
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                varying vec3 vWorldPosition;
+                varying float vDisplacement;
+
+                uniform vec3 uColor;
+                uniform vec3 uAccentColor;
+                uniform float uTime;
+                uniform float uAudioIntensity;
+
+                void main() {
+                    vec3 N = normalize(vNormal);
+                    vec3 V = normalize(vViewPosition);
+                    
+                    // Dual lighting sources aligned for bottom-left highlights
+                    vec3 lightDir1 = normalize(vec3(-3.0, -3.0, 5.0)); // Main specular highlight from bottom-left front
+                    vec3 lightDir2 = normalize(vec3(5.0, 5.0, -3.0));
+                    
+                    // Diffuse
+                    float diff1 = max(0.0, dot(N, lightDir1));
+                    float diff2 = max(0.0, dot(N, lightDir2));
+                    
+                    // Extremely high shininess Blinn-Phong specular highlighting
+                    vec3 H1 = normalize(lightDir1 + V);
+                    vec3 H2 = normalize(lightDir2 + V);
+                    float spec1 = pow(max(0.0, dot(N, H1)), 96.0); // very tight, shiny specular highlights
+                    float spec2 = pow(max(0.0, dot(N, H2)), 48.0);
+                    
+                    // Pure white base color
+                    vec3 baseColor = uColor;
+                    
+                    // High-key white diffuse model to make it look like a gorgeous glowing white core
+                    vec3 litColor = baseColor * (0.65 + diff1 * 0.25 + diff2 * 0.1);
+                    
+                    // Intense white highlights
+                    vec3 highlightColor = vec3(1.0, 1.0, 1.0);
+                    litColor += highlightColor * spec1 * 1.5;
+                    litColor += highlightColor * spec2 * 0.4;
+                    
+                    // White energy glow inside valleys
+                    if (uAudioIntensity > 0.01) {
+                        float glowMask = smoothstep(0.05, 0.35, vDisplacement);
+                        float glowStrength = uAudioIntensity * 3.2;
+                        litColor += uAccentColor * (glowMask * glowStrength);
+                    }
+                    
+                    gl_FragColor = vec4(litColor, 1.0);
+                }
+            `
+        });
+
+        // icosahedron with dense segments to allow high spike definition
+        const geometry = new THREE.IcosahedronGeometry(1.6, 75); 
+        const sphereMesh = new THREE.Mesh(geometry, spikeShaderMaterial);
+        scene.add(sphereMesh);
+
+        // Core glow helper (translucent inner sphere)
+        const coreGeo = new THREE.SphereGeometry(1.2, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: '#ffffff', // Glowing cyan core
+            transparent: true,
+            opacity: 0.18,
+            blending: THREE.AdditiveBlending
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        scene.add(coreMesh);
+
+        // Animation Loop variables
+        const clock = new THREE.Clock();
+        let targetIntensity = 0.0;
+        let currentIntensity = 0.0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsed = clock.getElapsedTime();
+            
+            // Calculate baseline pulse based on state
+            let basePulse = 0.0;
+            if (currentSystemState === "LISTENING") {
+                // Organic soft breathing wave
+                basePulse = (Math.sin(elapsed * 2.8) * 0.5 + 0.5) * 0.08;
+            } else if (currentSystemState === "SPEAKING") {
+                // Real-time audio voice syncing
+                basePulse = audioVolume * 0.8;
+            } else if (currentSystemState === "THINKING") {
+                // Energetic quick oscillation
+                basePulse = 0.15 + (Math.sin(elapsed * 9.0) * 0.5 + 0.5) * 0.15;
+            } else if (currentSystemState === "MUTED") {
+                basePulse = 0.0;
+            }
+
+            // Lerp target intensity for butter smooth visual transitions
+            targetIntensity = basePulse;
+            currentIntensity += (targetIntensity - currentIntensity) * 0.12;
+
+            // Update Shader Uniforms
+            spikeShaderMaterial.uniforms.uTime.value = elapsed;
+            spikeShaderMaterial.uniforms.uAudioIntensity.value = currentIntensity;
+
+            // Slowly rotate sphere for beautiful, evolving perspectives
+            sphereMesh.rotation.y = elapsed * 0.12;
+            sphereMesh.rotation.x = elapsed * 0.06;
+            
+            // Sync core mesh pulse
+            const coreScale = 1.0 + currentIntensity * 0.35;
+            coreMesh.scale.set(coreScale, coreScale, coreScale);
+            coreMat.opacity = 0.12 + currentIntensity * 0.22;
+
+            renderer.render(scene, camera);
+        }
+
+        // Window resize support
+        window.addEventListener('resize', () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
+
+        // Start Three.js
+        animate();
+    </script>
+</body>
+</html>

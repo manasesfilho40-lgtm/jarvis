@@ -1,0 +1,50 @@
+# API Keys and credentials
+config/api_keys.json
+config/leads_db.json
+leads_results.json
+memory/scripts/*_script.json
+
+# Log files
+*.log
+*.txt
+!requirements.txt
+!readme.md
+
+# OS / Editor garbage
+.vs/
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Python environment and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Media and screenshots
+wa_screen.png
+face.png
+*.webp
+*.mp4
+*.png
+*.jpg
+*.jpeg
+
+# Scratch directories
+scratch/
+tmp/
+temp/
