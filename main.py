@@ -273,7 +273,7 @@ class JarvisLive:
                     _time.sleep(2.5)
                     self._post_speech_cooldown = False
                     # Drain any stale audio that leaked in during speech
-                    while not self.out_queue.empty():
+                    while self.out_queue and not self.out_queue.empty():
                         try:
                             self.out_queue.get_nowait()
                         except Exception:
@@ -682,7 +682,7 @@ def main():
         shutil.copy(example_path, config_path)
         print("[JARVIS] api_keys.json criado a partir do exemplo. Configure sua chave Gemini em config/api_keys.json")
     try:
-        ui = JarvisUI("face.png")
+        ui = JarvisUI()
 
         def activate_jarvis_via_claps():
             print("[JARVIS] 👏 Palmas detectadas! Ativando sistema...")
@@ -696,9 +696,12 @@ def main():
             # Unmute and show UI
             ui.muted = False
             ui.set_state("LISTENING")
-            ui.root.deiconify() # Restore window
-            ui.root.lift()      # Bring to front
-            ui.root.focus_force()
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, lambda: (
+                ui.root.deiconify(),
+                ui.root.lift(),
+                ui.root.focus_force()
+            ))
             ui.write_log("SYS: Jarvis ativado por palmas.")
 
         global clap_detector

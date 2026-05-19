@@ -6,8 +6,8 @@ Integrates Three.js 3D Spiky Sphere with PyQt6 WebEngineView
 import sys
 import os
 import json
-from PyQt6.QtCore import Qt, QUrl, QTimer, pyqtSignal, QObject
-from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from PyQt6.QtCore import QUrl, pyqtSignal, QObject
+from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtGui import QIcon
@@ -47,7 +47,7 @@ class JarvisUI(QObject):
     volume_signal = pyqtSignal(float)
     leads_signal = pyqtSignal(str)
 
-    def __init__(self, face_image_path=None):
+    def __init__(self):
         super().__init__()
         self.app = QApplication.instance() or QApplication(sys.argv)
         
@@ -199,7 +199,7 @@ class JarvisUI(QObject):
             
     def _safe_update_leads(self, leads_json_str):
         if self._page_loaded:
-            js_code = f"updateLeadsData({json.dumps(leads_json_str)});"
+            js_code = f"updateLeadsData({leads_json_str});"
             self.web_view.page().runJavaScript(js_code)
 
     def show(self):
