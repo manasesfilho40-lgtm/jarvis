@@ -54,17 +54,17 @@ def launch_jarvis():
         print("[Background] JARVIS já está em execução.")
         return
 
-    detector._log("[Background] Lançando JARVIS via VBS...")
+    print("[Background] Lançando JARVIS via VBS...")
     try:
         vbs_path = base_dir / "JARVIS.vbs"
         os.startfile(str(vbs_path))
-        detector._log("[Background] Comando de lançamento enviado.")
+        print("[Background] Comando de lançamento enviado.")
     except Exception as e:
-        detector._log(f"[Background] Erro ao lançar: {e}")
+        print(f"[Background] Erro ao lançar: {e}")
 
 def on_claps_detected():
     if detector:
-        detector._log("[Background] 👏 Palmas detectadas! Tentando abrir o Jarvis...")
+        print("[Background] 👏 Palmas detectadas! Tentando abrir o Jarvis...")
     launch_jarvis()
 
 def start_background_listener():
@@ -77,10 +77,10 @@ def start_background_listener():
         while True:
             jarvis_active = is_jarvis_running()
             if jarvis_active and detector._running:
-                detector._log("[Background] JARVIS em execução. Desativando escuta temporariamente para evitar conflitos.")
+                print("[Background] JARVIS em execução. Desativando escuta temporariamente para evitar conflitos.")
                 detector.stop()
             elif not jarvis_active and not detector._running:
-                detector._log("[Background] JARVIS não está rodando. Ativando escuta...")
+                print("[Background] JARVIS não está rodando. Ativando escuta...")
                 detector.start()
             time.sleep(2)
     except KeyboardInterrupt:

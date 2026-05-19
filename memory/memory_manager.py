@@ -3,7 +3,10 @@ import os
 from pathlib import Path
 
 class MemoryManager:
-    def __init__(self, memory_file="memory/long_term.json"):
+    def __init__(self, memory_file=None):
+        if memory_file is None:
+            base = Path(__file__).resolve().parent
+            memory_file = base / "long_term.json"
         self.memory_file = Path(memory_file)
         self.memory_file.parent.mkdir(parents=True, exist_ok=True)
         self.memory = self._load_memory()

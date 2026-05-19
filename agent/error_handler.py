@@ -151,7 +151,7 @@ def generate_fix(step: dict, error: str, fix_suggestion: str) -> dict:
     import agent.local_genai as genai
 
     genai.configure(api_key=_get_api_key())
-    model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+    model = genai.GenerativeModel(model_name="gemini-2.5-flash")
 
     prompt = f"""A task step failed. Generate a replacement step.
 
@@ -189,9 +189,13 @@ Return ONLY the Python code, no explanation."""
         print(f"[ErrorHandler] ⚠️ Fix generation failed: {e}")
         return {
             "step":        step.get("step"),
-            "tool":        "generated_code",
+            "tool":        "code_helper",
             "description": f"Fallback for: {step.get('description')}",
-            "parameters":  {"description": step.get("description", "")},
+            "parameters":  {
+                "action": "run",
+                "description": step.get("description", ""),
+                "language": "python"
+            },
             "depends_on":  step.get("depends_on", []),
             "critical":    step.get("critical", False)
         }

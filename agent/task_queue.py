@@ -181,13 +181,14 @@ class TaskQueue:
                 cancel_flag = task.cancel_flag,
             )
 
-            with self._lock:
+            with self._condition:
                 if task.cancel_flag.is_set():
                     task.status = TaskStatus.CANCELLED
                 else:
                     task.status = TaskStatus.COMPLETED
                     task.result = result
                 self._active_count -= 1
+                self._condition.notify()
 
             if task.on_complete and not task.cancel_flag.is_set():
                 try:
@@ -198,10 +199,11 @@ class TaskQueue:
             print(f"[TaskQueue] ✅ Completed: [{task.task_id}]")
 
         except Exception as e:
-            with self._lock:
+            with self._condition:
                 task.status = TaskStatus.FAILED
                 task.error  = str(e)
                 self._active_count -= 1
+                self._condition.notify()
             print(f"[TaskQueue] ❌ Failed: [{task.task_id}] {e}")
 
         with self._condition:
