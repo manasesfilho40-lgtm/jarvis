@@ -28,6 +28,11 @@ class MemoryManager:
         """Stores a fact about the user."""
         self.memory[key] = value
         self._save_memory()
+        try:
+            from memory.obsidian_manager import update_facts_file
+            update_facts_file()
+        except Exception:
+            pass
         return f"Fact stored: {key} = {value}"
 
     def retrieve(self, key):

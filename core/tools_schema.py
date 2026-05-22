@@ -464,10 +464,11 @@ TOOL_DECLARATIONS = [
         "parameters": {
             "type": "OBJECT",
             "properties": {
-                "action": {"type": "STRING", "description": "send | autonomous"},
+                "action": {"type": "STRING", "description": "send | autonomous | guard"},
                 "target": {"type": "STRING", "description": "Contact name or phone number (with country code, e.g. 5511999999999)"},
-                "message": {"type": "STRING", "description": "Message to send (for 'send' action)"},
-                "product": {"type": "STRING", "description": "Product name (for 'autonomous' action)"}
+                "message": {"type": "STRING", "description": "Message to send (for 'send' or 'guard' action)"},
+                "product": {"type": "STRING", "description": "Product name (for 'autonomous' action)"},
+                "timeout_minutes": {"type": "INTEGER", "description": "How long to monitor for replies in guard mode (default: 60)"}
             },
             "required": ["action", "target"]
         }
@@ -499,4 +500,60 @@ TOOL_DECLARATIONS = [
             "required": ["message"]
         }
     },
+    {
+        "name": "self_repair",
+        "description": "Performs diagnostics on Jarvis system files, compiled files, python syntax, API key quotas, local LLMs, and automatically repairs any issues found.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "manage_crm",
+        "description": (
+            "Manages the leads CRM database. Use for: checking lead stats, listing/searching leads, "
+            "getting lead details, marking leads as contacted, deleting specific leads, or clearing all leads. "
+            "Actions: 'stats' (summary), 'list' (search), 'get' (details), 'mark_used' (contacted), 'delete' (remove one), 'clear' (remove all)."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {
+                    "type": "STRING",
+                    "description": "stats | list | get | mark_used | delete | clear"
+                },
+                "query": {
+                    "type": "STRING",
+                    "description": "Search term for list/get actions (name, phone, category, or address)"
+                },
+                "status": {
+                    "type": "STRING",
+                    "description": "Filter by status: new | used | all (default: new). For 'clear', specifies which leads to remove."
+                },
+                "limit": {
+                    "type": "INTEGER",
+                    "description": "Max results for list action (default: 10)"
+                },
+                "phone": {
+                    "type": "STRING",
+                    "description": "Phone number for mark_used or delete actions"
+                }
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "refresh_geopolitics",
+        "description": (
+            "Fetches the latest real-time geopolitical news, market tickers, and threat level from Google Search. "
+            "Use when the user asks for current world news, geopolitical updates, or market status. "
+            "Returns live data with news events, market prices, and a global threat assessment."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {},
+            "required": []
+        }
+    }
 ]

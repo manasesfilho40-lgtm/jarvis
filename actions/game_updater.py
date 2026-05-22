@@ -639,7 +639,7 @@ def _watch_and_shutdown(steam_path: Path, speak=None,
         if active:
             names = ", ".join(g["name"] for g in active)
             if speak:
-                speak(f"Download started for {names}. I'll shut down when done.")
+                speak(f"Download iniciado para {names}, senhor. Eu desligarei o computador assim que terminar.")
             break
     else:
         return  
@@ -648,13 +648,13 @@ def _watch_and_shutdown(steam_path: Path, speak=None,
         time.sleep(check_interval)
         if not any(g["state"] == 1026 for g in _get_steam_games(steam_path)):
             if speak:
-                speak("Download complete. Shutting down now.")
+                speak("Download concluído, senhor. Desligando o sistema agora.")
             time.sleep(5)
             _system_shutdown()
             return
 
     if speak:
-        speak("Download taking too long. Cancelling auto-shutdown.")
+        speak("O download está demorando muito, senhor. Cancelando o desligamento automático.")
 
 
 def _find_epic_exe() -> Path | None:

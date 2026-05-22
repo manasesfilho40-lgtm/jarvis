@@ -24,6 +24,15 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+import builtins
+def print(*args, **kwargs):
+    if sys.stdout is None:
+        return
+    try:
+        builtins.print(*args, **kwargs)
+    except Exception:
+        pass
+
 # Adiciona o diretório raiz ao path para importar o detector
 base_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(base_dir))

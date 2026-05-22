@@ -121,10 +121,11 @@ apify_leads
   input_data: object (required) — parameters like searchStringsArray or directUrls
   
 whatsapp_web
-  action: "send" | "autonomous" (required)
+  action: "send" | "autonomous" | "guard" (required)
   target: string (required) — contact or phone or "leads_results"
-  message: string (optional)
-  product: string (optional)
+  message: string (for 'send' or 'guard')
+  product: string (for 'autonomous')
+  timeout_minutes: integer (for 'guard' — default: 60)
 
 negotiation_script
   action: "generate" | "load" (required)
@@ -136,6 +137,20 @@ negotiation_script
 dev_agent
   description: string (required)
   language: string (optional)
+
+self_repair
+  No parameters. Runs self-diagnostics and auto-repair on the assistant's codebase.
+
+manage_crm
+  action: "stats" | "list" | "get" | "mark_used" | "delete" | "clear" (required)
+  query: string (for list/get — search by name, phone, or category)
+  status: "new" | "used" | "all" (for list/clear — default: new)
+  limit: integer (for list — max results, default: 10)
+  phone: string (for mark_used/delete — phone number)
+
+refresh_geopolitics
+  No parameters. Fetches real-time global news, market tickers, and threat level via Google Search.
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"
@@ -169,7 +184,7 @@ game_updater | action: update, platform: steam
 Goal: "Send John a message on WhatsApp saying there is a meeting tomorrow"
 Steps:
 
-send_message | receiver: John, message_text: "There is a meeting tomorrow", platform: WhatsApp
+whatsapp_web | action: "send", target: "John", message: "There is a meeting tomorrow"
 
 Goal: "Open the clock and set a reminder for 30 minutes later"
 Steps:

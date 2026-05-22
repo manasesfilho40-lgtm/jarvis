@@ -152,8 +152,28 @@ def _desktop_send(app_name: str, receiver: str, message: str) -> str:
 def _send_whatsapp(receiver: str, message: str) -> str:
     _require_pyautogui()
     
+    # Resolve target to phone number from CRM database if it's a contact name
+    resolved_phone = ""
+    try:
+        from actions.leads_manager import init_db
+        db = init_db()
+        name_clean = str(receiver).lower().strip()
+        # Try to match the title
+        for lead in db.get("new", []) + db.get("used", []):
+            title = str(lead.get("title", "")).lower().strip()
+            if name_clean in title or title in name_clean:
+                phone = lead.get("phoneUnformatted")
+                if phone:
+                    resolved_phone = phone
+                    print(f"[SendMessage] Resolved name '{receiver}' to phone number '{phone}' from CRM database.")
+                    break
+    except Exception as e:
+        print(f"[SendMessage CRM Resolve Warning] {e}")
+
+    target_to_check = resolved_phone if resolved_phone else receiver
+
     # Clean up phone number if it looks like one
-    clean_num = receiver.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    clean_num = target_to_check.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
     is_phone = clean_num.isdigit() and len(clean_num) >= 8
     
     if is_phone:

@@ -3,6 +3,7 @@ import re
 import asyncio
 import json
 import time
+import random
 from pathlib import Path
 from playwright.async_api import async_playwright
 from google import genai
@@ -14,20 +15,121 @@ def get_base_dir():
 BASE_DIR = get_base_dir()
 API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 
+_KNOWN_COUNTRY_CODES = {
+    "1",   # US/CA
+    "7",   # RU/KZ
+    "20",  # EG
+    "27",  # ZA
+    "30",  # GR
+    "31",  # NL
+    "32",  # BE
+    "33",  # FR
+    "34",  # ES
+    "36",  # HU
+    "39",  # IT
+    "40",  # RO
+    "41",  # CH
+    "43",  # AT
+    "44",  # UK
+    "45",  # DK
+    "46",  # SE
+    "47",  # NO
+    "48",  # PL
+    "49",  # DE
+    "51",  # PE
+    "52",  # MX
+    "53",  # CU
+    "54",  # AR
+    "55",  # BR
+    "56",  # CL
+    "57",  # CO
+    "58",  # VE
+    "60",  # MY
+    "61",  # AU
+    "62",  # ID
+    "63",  # PH
+    "64",  # NZ
+    "65",  # SG
+    "66",  # TH
+    "81",  # JP
+    "82",  # KR
+    "84",  # VN
+    "86",  # CN
+    "90",  # TR
+    "91",  # IN
+    "92",  # PK
+    "93",  # AF
+    "94",  # LK
+    "95",  # MM
+    "98",  # IR
+    "212", # MA
+    "213", # DZ
+    "216", # TN
+    "218", # LY
+    "220", # GM
+    "234", # NG
+    "254", # KE
+    "255", # TZ
+    "256", # UG
+    "351", # PT
+    "353", # IE
+    "354", # IS
+    "355", # AL
+    "358", # FI
+    "370", # LT
+    "372", # EE
+    "380", # UA
+    "420", # CZ
+    "421", # SK
+    "502", # GT
+    "503", # SV
+    "504", # HN
+    "505", # NI
+    "506", # CR
+    "507", # PA
+    "591", # BO
+    "593", # EC
+    "595", # PY
+    "598", # UY
+    "961", # LB
+    "962", # JO
+    "963", # SY
+    "964", # IQ
+    "965", # KW
+    "966", # SA
+    "971", # AE
+    "972", # IL
+    "973", # BH
+    "974", # QA
+    "975", # BT
+    "976", # MN
+    "977", # NP
+    "992", # TJ
+    "993", # TM
+    "994", # AZ
+    "995", # GE
+    "996", # KG
+    "998", # UZ
+}
+
 def _get_api_key() -> str:
     with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)["gemini_api_key"]
 
 def _normalize_phone(phone_str: str) -> str:
-    # Keep only digits
     digits = "".join(c for c in phone_str if c.isdigit())
     if not digits:
         return ""
-    
-    # Brazilian specific normalization
-    # If it's a 10 or 11 digit number (e.g., 11987654321), prepend 55 (Brazil country code)
-    if len(digits) in (10, 11) and not digits.startswith("55"):
+
+    if len(digits) <= 11 and not digits.startswith("55"):
         digits = "55" + digits
+        return digits
+
+    for code_len in (3, 2, 1):
+        potential_code = digits[:code_len]
+        if potential_code in _KNOWN_COUNTRY_CODES:
+            return digits
+
     return digits
 
 class WhatsAppWeb:
@@ -36,42 +138,26 @@ class WhatsAppWeb:
         self.context = None
         self.page = None
         self.playwright = None
+        self._stop = False
+        self._stop_event = asyncio.Event()
+        self._conversation_history = []
 
     async def check_and_dismiss_popups(self):
-        """Checks for common WhatsApp Web blocker popups and clicks the appropriate button."""
         try:
-            # 1. Look for "Usar nesta janela" / "Usar aqui" (Use here) blocker popup
-            for text in ["Usar nesta janela", "Usar aqui", "Use here", "usar nesta janela", "usar aqui", "use here"]:
-                locator = self.page.get_by_text(re.compile(text, re.IGNORECASE))
-                count = await locator.count()
+            blocker_texts = ["Usar nesta janela", "Usar aqui", "Use here"]
+            for text in blocker_texts:
+                locs = self.page.locator(f"button:has-text('{text}'), div[role='button']:has-text('{text}')")
+                count = await locs.count()
                 for i in range(count):
-                    el = locator.nth(i)
+                    el = locs.nth(i)
                     try:
                         if await el.is_visible():
-                            print(f"[WhatsApp] Found blocker element with text '{text}'. Clicking...")
-                            await el.click(force=True)  # Force click just in case
+                            await el.click(force=True)
                             await asyncio.sleep(2)
-                            return
-                    except Exception as click_err:
-                        print(f"[WhatsApp] Click error on '{text}': {click_err}")
-                        
-            # 2. Selector fallback for "Usar nesta janela"
-            for text in ["Usar nesta janela", "Usar aqui", "Use here"]:
-                for selector in ["button", "div[role='button']", "span", "div"]:
-                    locs = self.page.locator(f"{selector}:has-text('{text}')")
-                    count = await locs.count()
-                    for i in range(count):
-                        btn = locs.nth(i)
-                        try:
-                            if await btn.is_visible():
-                                print(f"[WhatsApp] Found blocker element via selector '{selector}' with text '{text}'. Clicking...")
-                                await btn.click(force=True)
-                                await asyncio.sleep(2)
-                                return
-                        except Exception as click_err:
-                            print(f"[WhatsApp] Click error on '{selector}:{text}': {click_err}")
+                            return True
+                    except Exception:
+                        pass
 
-            # 3. Look for "O número ... não está no WhatsApp" or "invalid" popup
             dialogs = self.page.locator("div[role='dialog'], div[role='alertdialog']")
             dialog_count = await dialogs.count()
             for i in range(dialog_count):
@@ -80,31 +166,27 @@ class WhatsAppWeb:
                     if await dialog.is_visible():
                         text_content = await dialog.inner_text()
                         low_text = text_content.lower()
-                        # Check if it's an invalid number popup (Portuguese and English)
                         if any(term in low_text for term in ["não está no whatsapp", "não está", "is not on whatsapp", "inválido", "invalid"]):
-                            print(f"[WhatsApp] Detected invalid number popup: '{text_content.strip()}'. Clicking OK...")
-                            # Find the OK button inside the dialog
                             ok_btn = dialog.get_by_text(re.compile("^OK$", re.IGNORECASE))
                             if await ok_btn.count() > 0:
                                 await ok_btn.first.click(force=True)
                                 await asyncio.sleep(1)
-                                raise ValueError(f"PHONE_INVALID: {text_content.strip()}")
+                            raise ValueError(f"PHONE_INVALID: {text_content.strip()}")
                 except ValueError:
                     raise
-                except Exception as dialog_err:
-                    print(f"[WhatsApp] Error checking dialog content: {dialog_err}")
+                except Exception:
+                    pass
         except ValueError:
             raise
         except Exception as e:
-            print(f"[WhatsApp] Error checking/dismissing popups: {e}")
+            print(f"[WhatsApp] Popup check error: {e}")
+        return False
 
     async def start(self):
         self.playwright = await async_playwright().start()
-        
-        # Path to Brave user data on Windows - USING A DEDICATED JARVIS PROFILE
+
         user_data_dir = os.path.join(os.environ["LOCALAPPDATA"], "BraveSoftware", "Brave-Browser", "JarvisProfile")
-        
-        # Try to find Brave executable
+
         brave_path = os.path.join(os.environ["PROGRAMFILES"], "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
         if not os.path.exists(brave_path):
             brave_path = os.path.join(os.environ["LOCALAPPDATA"], "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
@@ -117,32 +199,27 @@ class WhatsAppWeb:
                 args=["--remote-debugging-port=9222"]
             )
         except Exception as launch_err:
-            print(f"[WhatsApp] Persistent launch failed: {launch_err}. Trying fallback temporary profile...")
-            # Fallback to a temporary profile to avoid blockages when Brave is already open
+            print(f"[WhatsApp] Persistent launch failed: {launch_err}. Trying fallback...")
             import tempfile
-            import random
             temp_profile = os.path.join(tempfile.gettempdir(), f"jarvis_temp_profile_{random.randint(1000, 9999)}")
             self.context = await self.playwright.chromium.launch_persistent_context(
                 temp_profile,
                 executable_path=brave_path if os.path.exists(brave_path) else None,
                 headless=False,
-                args=[] # No port to avoid conflicts
+                args=[]
             )
 
         try:
-            # Persistent context restores previous tabs. Reuse them to avoid duplicates.
             if self.context.pages:
                 self.page = self.context.pages[-1]
-                # Optional: close extra orphan tabs
                 for p in self.context.pages[:-1]:
                     await p.close()
             else:
                 self.page = await self.context.new_page()
-                
-            await self.page.goto("https://web.whatsapp.com")
+
+            await self.page.goto("https://web.whatsapp.com", timeout=60000)
             print("[WhatsApp] Browser started and navigated to WhatsApp Web.")
-            
-            # Active check for "Usar aqui" popup during initial load
+
             for _ in range(15):
                 await self.check_and_dismiss_popups()
                 await asyncio.sleep(1)
@@ -152,366 +229,600 @@ class WhatsAppWeb:
             raise
 
     async def stop(self):
+        self._stop = True
+        self._stop_event.set()
         if self.context:
-            await self.context.close()
+            try:
+                await self.context.close()
+            except Exception:
+                pass
         if self.playwright:
-            await self.playwright.stop()
+            try:
+                await self.playwright.stop()
+            except Exception:
+                pass
+
+    async def _is_browser_alive(self) -> bool:
+        if not self.page:
+            return False
+        try:
+            await self.page.evaluate("() => document.title")
+            return True
+        except Exception:
+            return False
 
     async def open_chat(self, name_or_number):
-        # Clean target to check if it's a phone number
-        clean_num = _normalize_phone(name_or_number)
+        resolved_phone = ""
+        try:
+            from actions.leads_manager import init_db
+            db = init_db()
+            name_clean = str(name_or_number).lower().strip()
+            for lead in db.get("new", []) + db.get("used", []):
+                title = str(lead.get("title", "")).lower().strip()
+                if name_clean in title or title in name_clean:
+                    phone = lead.get("phoneUnformatted")
+                    if phone:
+                        resolved_phone = phone
+                        print(f"[WhatsApp] Resolved '{name_or_number}' to '{phone}' from CRM.")
+                        break
+        except Exception as e:
+            print(f"[WhatsApp CRM Resolve Warning] {e}")
+
+        target_to_check = resolved_phone if resolved_phone else name_or_number
+        clean_num = _normalize_phone(target_to_check)
         is_phone = clean_num.isdigit() and len(clean_num) >= 8
-        
+
         if is_phone:
-            print(f"[WhatsApp] Target looks like a phone number. Opening direct chat link for: {clean_num}")
+            print(f"[WhatsApp] Opening direct chat for: {clean_num}")
             await self.page.goto(f"https://web.whatsapp.com/send?phone={clean_num}")
-            # Wait up to 15 seconds for chat loading, checking for popup
             for _ in range(15):
                 await self.check_and_dismiss_popups()
                 await asyncio.sleep(1)
             return
 
-        # Search for contact using resilient selectors
         search_box = self.page.locator("div[contenteditable='true'][data-tab='3'], [placeholder='Pesquisar ou começar uma nova conversa']")
-        
-        # Wait up to 120 seconds with active popup check
+
         for _ in range(120):
             await self.check_and_dismiss_popups()
             try:
                 if await search_box.is_visible():
                     break
-            except:
+            except Exception:
                 pass
             await asyncio.sleep(1)
-            
+
         await search_box.click()
         await search_box.fill("")
         await search_box.type(name_or_number)
         await asyncio.sleep(2)
-        
-        # Click the first result
+
         chat_selector = f"span[title='{name_or_number}']"
         try:
             await self.page.click(chat_selector, timeout=5000)
-        except:
-            # Fallback to general chat list item if title match fails
+        except Exception:
             await self.page.keyboard.press("Enter")
-        
+
         await asyncio.sleep(1)
+
     async def send_message(self, message):
-        import random
-        input_box = await self.page.wait_for_selector("footer div[contenteditable='true']")
+        input_box = await self.page.wait_for_selector(
+            "footer div[contenteditable='true'], div[data-tab='10']",
+            timeout=15000
+        )
+        if not input_box:
+            raise Exception("Campo de mensagem não encontrado.")
         await input_box.click()
-        
-        # Simula digitação humana caractere por caractere para aparecer as bolinhas "digitando..."
+
+        char_delay = max(0.01, min(0.05, 0.05 - (len(message) * 0.0003)))
         for char in message:
             await self.page.keyboard.type(char)
-            await asyncio.sleep(random.uniform(0.015, 0.05)) # Atraso natural por tecla
-            
-        # Pequena pausa reflexiva antes de dar o enter
+            await asyncio.sleep(random.uniform(char_delay * 0.7, char_delay * 1.3))
+
         await asyncio.sleep(random.uniform(0.4, 0.9))
         await self.page.keyboard.press("Enter")
         await asyncio.sleep(0.5)
-        
-        # Fallback explícito: se o botão de enviar ainda estiver visível, clica nele!
+
         try:
             send_btn = await self.page.query_selector("span[data-icon='send']")
             if send_btn:
                 await send_btn.click()
-        except:
+        except Exception:
             pass
 
     async def get_last_messages(self, limit=5):
-        # Select message containers
-        messages = await self.page.query_selector_all(".message-in")
         results = []
-        for msg in messages[-limit:]:
-            text = await msg.inner_text()
-            if text:
-                lines = text.strip().split("\n")
-                if len(lines) > 1 and ("AM" in lines[-1] or "PM" in lines[-1] or ":" in lines[-1]):
-                    text = "\n".join(lines[:-1])
-                results.append(text.strip())
+        try:
+            message_bubbles = await self.page.query_selector_all(
+                "div[data-testid='bubble-body'] span.selectable-text, "
+                "div[data-testid='bubble-body'] span[dir='auto']"
+            )
+            for msg in message_bubbles[-limit:]:
+                try:
+                    text = await msg.inner_text()
+                    if text and text.strip():
+                        results.append(text.strip())
+                except Exception:
+                    continue
+
+            if not results:
+                containers = await self.page.query_selector_all(".message-in, .message-out")
+                for msg in containers[-limit:]:
+                    try:
+                        text = await msg.inner_text()
+                        if text:
+                            lines = text.strip().split("\n")
+                            if len(lines) > 1 and ("AM" in lines[-1] or "PM" in lines[-1] or ":" in lines[-1]):
+                                text = "\n".join(lines[:-1])
+                            if text.strip():
+                                results.append(text.strip())
+                    except Exception:
+                        continue
+        except Exception as e:
+            print(f"[WhatsApp] get_last_messages error: {e}")
+
         return results
 
-    async def autonomous_loop(self, product_name, player=None):
+    async def _get_or_create_script(self, product_name, player=None):
         from actions.negotiation_script import load_script
         script = load_script(product_name)
         if not script:
-            print(f"[WhatsApp] No script found for {product_name}")
             if player:
-                player.write_log(f"ERR: Nenhum roteiro encontrado para '{product_name}'")
-            return
+                player.write_log(f"SYS: Roteiro não encontrado para '{product_name}'. Gerando automaticamente...")
+            try:
+                from actions.negotiation_script import generate_negotiation_script
+                generate_negotiation_script(
+                    product=product_name,
+                    price="R$ 150",
+                    max_discount="20%",
+                    tone="casual"
+                )
+                script = load_script(product_name)
+            except Exception as e:
+                print(f"[WhatsApp] Script generation error: {e}")
+
+            if not script:
+                script = {
+                    "opening_message": f"Olá! Sou designer freelancer especializado em anúncios de alta conversão. Posso criar criativos para {product_name}. Posso te mostrar exemplos?",
+                    "objection_handling": {
+                        "nao_temos_interesse": "Sem problemas! Só queria deixar meu contato para o caso de precisarem no futuro. Valeu!",
+                        "ja_temos_agencia": "Show! Trabalho muito como braço de apoio pra agências também. Se precisar de uma força com criativos rápidos, conta comigo.",
+                        "preco_alto": "Entendo total! Crio os layouts sob demanda e o retorno paga rápido. O que acha de testar uma única peça por R$ 120?"
+                    },
+                    "counter_proposal": "Que tal começarmos com uma peça teste para você ver o resultado?",
+                    "closing_message": "Ótimo! Posso começar ainda hoje. Vou precisar só do logo e referências.",
+                    "metadata": {"product": product_name, "price": "R$ 150", "max_discount": "20%"}
+                }
+        return script
+
+    async def guard_loop(self, target, message=None, player=None, timeout_minutes=60):
+        """Sends a message (if provided) then stays in the chat monitoring for replies."""
+        self._conversation_history = []
+
+        if player:
+            player.write_log(f"SYS: Modo guarda ativado para {target}. Monitorando por {timeout_minutes} minutos...")
+
+        if message:
+            try:
+                await self.send_message(message)
+                self._conversation_history.append({"role": "assistant", "content": message})
+                if player:
+                    player.write_log(f"SYS: Mensagem enviada. Aguardando resposta do lead...")
+            except Exception as e:
+                print(f"[WhatsApp] Guard send error: {e}")
+                if player:
+                    player.write_log(f"ERR: Falha ao enviar: {e}")
+
+        last_seen_msg = None
+        reply_count = 0
+        start_time = time.time()
+        timeout_seconds = timeout_minutes * 60
+
+        while not self._stop:
+            if not await self._is_browser_alive():
+                if player:
+                    player.write_log("ERR: Browser fechado. Encerrando guarda.")
+                return
+
+            elapsed = time.time() - start_time
+            if elapsed > timeout_seconds:
+                if player:
+                    player.write_log(f"SYS: Timeout de {timeout_minutes}min atingido. Encerrando guarda.")
+                return
+
+            try:
+                msgs = await self.get_last_messages(limit=3)
+                if msgs:
+                    newest = msgs[-1]
+                    if newest != last_seen_msg:
+                        last_container = None
+                        containers = await self.page.query_selector_all(".message-in, .message-out")
+                        if containers:
+                            last_container = containers[-1]
+                            classes = await last_container.evaluate("el => el.className")
+
+                        if last_container and "message-in" in classes:
+                            reply_count += 1
+                            last_seen_msg = newest
+                            self._conversation_history.append({"role": "user", "content": newest})
+
+                            if player:
+                                player.write_log(f"LEADS: {target} respondeu: '{newest[:50]}...'")
+
+                            try:
+                                from actions.notifier import notify_client_reply
+                                notify_client_reply(f"{target} respondeu: {newest}")
+                            except Exception:
+                                pass
+
+                            if reply_count == 1:
+                                if player:
+                                    player.write_log("JARVIS: Primeira resposta detectada! Mantendo monitoramento...")
+                        else:
+                            last_seen_msg = newest
+
+                await asyncio.sleep(3)
+            except Exception as e:
+                print(f"[WhatsApp] Guard loop error: {e}")
+                await asyncio.sleep(10)
+
+    async def autonomous_loop(self, product_name, player=None, max_messages=20):
+        script = await self._get_or_create_script(product_name, player)
+        self._conversation_history = []
 
         if player:
             player.write_log(f"SYS: Iniciando fluxo de negociação para '{product_name}'...")
-        
-        # Envia a mensagem padrão inicial com digitação humana simulada
+
         opening = script.get("opening_message", "Bom dia, preciso falar com o responsável pelo marketing ou pelo comercial — é sobre uma proposta de divulgação pra empresa.")
         if player:
             player.write_log(f"SYS: Enviando mensagem padrão de contato inicial...")
-            
+
         try:
             await self.send_message(opening)
+            self._conversation_history.append({"role": "assistant", "content": opening})
             if player:
                 player.write_log(f"SYS: Mensagem inicial enviada! Aguardando respostas do lead...")
         except Exception as e:
             print(f"[WhatsApp] Error sending opening message: {e}")
             if player:
                 player.write_log(f"ERR: Falha ao enviar mensagem inicial: {e}")
+            return
 
         last_seen_msg = None
-        
-        while True:
+        message_count = 0
+
+        while not self._stop and message_count < max_messages:
             try:
+                if not await self._is_browser_alive():
+                    if player:
+                        player.write_log("ERR: Browser fechado. Encerrando negociação.")
+                    return
+
+                containers = await self.page.query_selector_all(".message-in, .message-out")
+                if containers:
+                    last_container = containers[-1]
+                    classes = await last_container.evaluate("el => el.className")
+                    if "message-out" in classes:
+                        text = await last_container.inner_text()
+                        if text:
+                            lines = text.strip().split("\n")
+                            if len(lines) > 1 and ("AM" in lines[-1] or "PM" in lines[-1] or ":" in lines[-1]):
+                                text = "\n".join(lines[:-1])
+                            last_seen_msg = text.strip()
+                        await asyncio.sleep(5)
+                        continue
+
                 msgs = await self.get_last_messages(limit=1)
                 if msgs and msgs[-1] != last_seen_msg:
                     incoming = msgs[-1]
                     last_seen_msg = incoming
+                    self._conversation_history.append({"role": "user", "content": incoming})
                     print(f"[WhatsApp] New message: {incoming}")
                     if player:
-                        player.write_log(f"LEADS: Nova mensagem de {incoming[:20]}...")
-                    
-                    # Call Gemini to generate reply
+                        player.write_log(f"LEADS: Nova mensagem recebida...")
+
                     reply = await self._generate_reply(incoming, script)
                     print(f"[WhatsApp] Replying: {reply}")
-                    
+
                     if player:
-                        player.write_log(f"JARVIS: Digitando resposta humana...")
-                    
+                        player.write_log(f"JARVIS: Digitando resposta...")
+
                     await self.send_message(reply)
-                    
+                    self._conversation_history.append({"role": "assistant", "content": reply})
+                    message_count += 1
+
                     if player:
-                        player.write_log(f"JARVIS: Resposta enviada com sucesso.")
-                    
-                    # Trigger notification
-                    from actions.notifier import notify_client_reply
-                    notify_client_reply(incoming)
-                
+                        player.write_log(f"JARVIS: Resposta enviada ({message_count}/{max_messages}).")
+
+                    try:
+                        from actions.notifier import notify_client_reply
+                        notify_client_reply(incoming)
+                    except Exception:
+                        pass
+
                 await asyncio.sleep(5)
             except Exception as e:
                 print(f"[WhatsApp] Loop error: {e}")
                 await asyncio.sleep(10)
 
-    async def multi_autonomous_loop(self, product_name, player=None):
-        from actions.negotiation_script import load_script
-        script = load_script(product_name)
-        if not script:
-            print(f"[WhatsApp] No script found for {product_name}")
-            if player:
-                player.write_log(f"ERR: Nenhum roteiro encontrado para '{product_name}'")
-            return
+        if player:
+            player.write_log(f"SYS: Negociação encerrada ({message_count} mensagens trocadas).")
 
-        # Sincroniza qualquer lead de leads_results.json no banco de dados primeiro
-        leads_path = get_base_dir() / "leads_results.json"
-        if leads_path.exists():
-            try:
-                with open(leads_path, "r", encoding="utf-8") as f:
-                    raw_leads = json.load(f)
-                from actions.leads_manager import import_scraped_leads
-                import_scraped_leads(raw_leads)
-            except Exception as e:
-                print(f"[WhatsApp CRM Sync] Sync failed: {e}")
+    async def multi_autonomous_loop(self, product_name, player=None, max_leads_per_cycle=50):
+        script = await self._get_or_create_script(product_name, player)
+        self._conversation_history = []
 
-        from actions.leads_manager import get_new_leads, mark_as_used
+        from actions.leads_manager import get_new_leads, mark_as_used, get_db_lock
 
         if player:
-            player.write_log("SYS: Iniciando prospecção inteligente com base no banco de leads (Novos vs Já Usados)...")
+            player.write_log("SYS: Iniciando prospecção inteligente com base no banco de leads...")
 
-        while True:
-            # Recarrega a lista de leads novos a cada loop para pegar novos leads minerados em tempo real!
-            active_leads = get_new_leads()
-            
+        cycle_count = 0
+        max_cycles = 100
+
+        while not self._stop and cycle_count < max_cycles:
+            if not await self._is_browser_alive():
+                if player:
+                    player.write_log("ERR: Browser fechado. Encerrando prospecção.")
+                return
+
+            try:
+                with get_db_lock():
+                    active_leads = get_new_leads()
+            except Exception as e:
+                print(f"[WhatsApp] CRM read error: {e}")
+                await asyncio.sleep(30)
+                cycle_count += 1
+                continue
+
             if not active_leads:
                 if player:
-                    player.write_log("SYS: Todos os leads foram prospectados! Aguardando novos leads serem minerados...")
+                    player.write_log("SYS: Todos os leads prospectados! Aguardando novos leads...")
                 await asyncio.sleep(30)
+                cycle_count += 1
                 continue
 
             if player:
-                player.write_log(f"SYS: {len(active_leads)} novos leads encontrados na fila para prospecção!")
+                player.write_log(f"SYS: {len(active_leads)} novos leads na fila!")
 
+            leads_processed = 0
             for lead in active_leads:
+                if self._stop or leads_processed >= max_leads_per_cycle:
+                    break
+
                 lead_name = lead.get("title", "Cliente")
                 raw_phone = lead.get("phoneUnformatted", "")
-                
-                # Clean and normalize phone prefix
                 lead_phone = _normalize_phone(raw_phone)
-                
+
                 if not lead_phone:
                     if player:
-                        player.write_log(f"SYS: Lead {lead_name} não possui telefone válido. Pulando e marcando como usado...")
-                    mark_as_used(raw_phone)
+                        player.write_log(f"SYS: Lead {lead_name} sem telefone válido. Pulando...")
+                    try:
+                        with get_db_lock():
+                            mark_as_used(raw_phone)
+                    except Exception:
+                        mark_as_used(raw_phone)
                     continue
 
                 if player:
-                    player.write_log(f"SYS: Abrindo ligação direta via API para: {lead_name} (55{lead_phone[-10:] if len(lead_phone) >= 10 else lead_phone})...")
-                
+                    player.write_log(f"SYS: Abrindo chat para: {lead_name} ({lead_phone[-10:]})...")
+
                 try:
-                    # Abre o chat diretamente pelo link do telefone LIMPO (sem "+"!)
                     await self.page.goto(f"https://web.whatsapp.com/send?phone={lead_phone}")
-                    
-                    # Aguarda o carregamento ativamente descartando quaisquer bloqueios ("Usar aqui", etc.)
-                    for _ in range(8):
+
+                    chat_loaded = False
+                    invalid_detected = False
+                    for _ in range(20):
+                        if self._stop:
+                            break
                         await self.check_and_dismiss_popups()
+
+                        input_box = await self.page.query_selector("footer div[contenteditable='true']")
+                        if input_box:
+                            chat_loaded = True
+                            break
+
+                        invalid_popup = await self.page.query_selector("div[role='dialog']")
+                        if invalid_popup:
+                            popup_text = await invalid_popup.inner_text()
+                            if any(term in popup_text.lower() for term in ["inválido", "invalid", "não está no", "not on whatsapp"]):
+                                invalid_detected = True
+                                break
+
                         await asyncio.sleep(1)
-                    
-                    # Verifica se o chat abriu com sucesso ou se deu número inválido
-                    invalid_popup = await self.page.query_selector("div[role='dialog']")
-                    if invalid_popup:
-                        popup_text = await invalid_popup.inner_text()
-                        if any(term in popup_text.lower() for term in ["inválido", "invalid", "não está no", "not on whatsapp"]):
-                            if player:
-                                player.write_log(f"SYS: Lead {lead_name} possui telefone inválido no WhatsApp. Pulando...")
+
+                    if invalid_detected:
+                        if player:
+                            player.write_log(f"SYS: Telefone inválido para {lead_name}. Pulando...")
+                        invalid_popup = await self.page.query_selector("div[role='dialog']")
+                        if invalid_popup:
                             ok_btn = await invalid_popup.query_selector("button")
                             if ok_btn:
                                 await ok_btn.click()
+                        try:
+                            with get_db_lock():
+                                mark_as_used(raw_phone)
+                        except Exception:
                             mark_as_used(raw_phone)
-                            continue
+                        continue
 
-                    # Lê as últimas mensagens do chat
+                    if not chat_loaded:
+                        if player:
+                            player.write_log(f"SYS: Timeout ao abrir chat de {lead_name}. Pulando...")
+                        continue
+
                     msgs = await self.get_last_messages(limit=1)
-                    
+
                     if not msgs:
-                        # Chat fresco! Nunca enviamos nada. Envia a mensagem padrão inicial
                         opening = script.get("opening_message", "Bom dia, preciso falar com o responsável pelo marketing ou pelo comercial — é sobre uma proposta de divulgação pra empresa.")
                         if player:
-                            player.write_log(f"SYS: Chat limpo! Enviando proposta padrão inicial para {lead_name}...")
-                        
+                            player.write_log(f"SYS: Enviando proposta inicial para {lead_name}...")
+
                         await self.send_message(opening)
-                        
-                        # Sucesso! Marca como USADO no banco para nunca repetir o envio!
-                        mark_as_used(raw_phone)
+
+                        try:
+                            with get_db_lock():
+                                mark_as_used(raw_phone)
+                        except Exception:
+                            mark_as_used(raw_phone)
+
                         if player:
-                            player.write_log(f"SYS: Lead {lead_name} prospectado com sucesso e marcado como USADO.")
-                        
+                            player.write_log(f"SYS: Lead {lead_name} prospectado com sucesso.")
+
                     else:
-                        # Já conversamos com esse lead ou ele já respondeu. Marca como usado para liberar a fila.
-                        mark_as_used(raw_phone)
-                        last_msg = msgs[-1]
-                        
-                        # Verifica se a última mensagem é dele ou nossa
+                        try:
+                            with get_db_lock():
+                                mark_as_used(raw_phone)
+                        except Exception:
+                            mark_as_used(raw_phone)
+
                         last_message_container = await self.page.query_selector_all(".message-out, .message-in")
                         if last_message_container:
                             last_container = last_message_container[-1]
                             classes = await last_container.evaluate("el => el.className")
-                            
+
                             if "message-in" in classes:
-                                # Significa que o cliente respondeu! O Jarvis assume a negociação!
+                                last_msg = msgs[-1]
                                 if player:
                                     player.write_log(f"LEADS: {lead_name} respondeu: '{last_msg[:30]}...'")
-                                    player.write_log(f"JARVIS: Formulando contraproposta curta e humana...")
-                                
+                                    player.write_log(f"JARVIS: Formulando resposta...")
+
                                 reply = await self._generate_reply(last_msg, script)
                                 await self.send_message(reply)
-                                
+
                                 if player:
-                                    player.write_log(f"JARVIS: Resposta de negociação enviada para {lead_name}.")
-                                    
-                                from actions.notifier import notify_client_reply
-                                notify_client_reply(f"Lead {lead_name} respondeu: {last_msg}")
+                                    player.write_log(f"JARVIS: Resposta enviada para {lead_name}.")
+
+                                try:
+                                    from actions.notifier import notify_client_reply
+                                    notify_client_reply(f"Lead {lead_name} respondeu: {last_msg}")
+                                except Exception:
+                                    pass
                             else:
                                 if player:
                                     player.write_log(f"SYS: Aguardando retorno de {lead_name}...")
-                                    
+
                 except Exception as e:
-                    print(f"[WhatsApp] Erro no processamento do lead {lead_name}: {e}")
+                    print(f"[WhatsApp] Error processing lead {lead_name}: {e}")
                     if player:
                         player.write_log(f"ERR: Falha ao processar lead {lead_name}: {e}")
-                
-                await asyncio.sleep(5) # Pequeno intervalo de segurança entre leads
-                
+
+                leads_processed += 1
+                await asyncio.sleep(random.uniform(8, 15))
+
             if player:
-                player.write_log("SYS: Ciclo completo finalizado. Aguardando 30 segundos para novas varreduras...")
-            await asyncio.sleep(30)
+                player.write_log(f"SYS: Ciclo {cycle_count + 1} finalizado ({leads_processed} leads processados). Aguardando...")
+            await asyncio.sleep(random.uniform(25, 40))
+            cycle_count += 1
+
+        if player:
+            player.write_log(f"SYS: Prospecção encerrada após {cycle_count} ciclos.")
 
     async def _generate_reply(self, message, script):
-        import random
-        
         msg_lower = message.lower().strip()
-        
-        # 1. INTENT ROUTING (Respostas Rápidas - Humanas e Curtas)
-        # Desinteresse
+
         if any(x in msg_lower for x in ["não tenho interesse", "não temos interesse", "não quero", "sem interesse", "não obrigado", "não obrigada"]):
             return script.get("objection_handling", {}).get("nao_temos_interesse", "Sem problemas! Só queria deixar meu contato para o caso de precisarem no futuro. Valeu!")
-            
-        # Já temos agência
+
         if any(x in msg_lower for x in ["já temos agência", "ja temos agencia", "já temos assessoria", "agência própria", "parceria fechada"]):
             return script.get("objection_handling", {}).get("ja_temos_agencia", "Show! Trabalho muito como braço de apoio pra agências também. Se precisar de uma força com criativos rápidos, conta comigo.")
 
-        # Preço alto
         if any(x in msg_lower for x in ["caro", "preço alto", "valor alto", "fora do orçamento", "não posso pagar"]):
             return script.get("objection_handling", {}).get("preco_alto", "Entendo total! Crio os layouts sob demanda e o retorno paga rápido. O que acha de testar uma única peça por R$ 120?")
 
-        # 2. IA CLOSER DE NEGOCIAÇÃO (Gemini 2.0-Flash com o API Key existente)
         try:
             api_key = _get_api_key()
             client = genai.Client(api_key=api_key)
-            
+
+            history_context = ""
+            if self._conversation_history:
+                recent = self._conversation_history[-6:]
+                history_lines = []
+                for msg in recent:
+                    role = "Você" if msg["role"] == "assistant" else "Cliente"
+                    history_lines.append(f"{role}: {msg['content']}")
+                history_context = "\nHistórico recente da conversa:\n" + "\n".join(history_lines) + "\n"
+
             prompt = f"""
-            Você é um designer gráfico freelancer brasileiro conversando de forma informal e comercial com um possível cliente no WhatsApp.
-            
+            Você é um designer gráfico freelancer brasileiro conversando de forma informal com um possível cliente no WhatsApp.
+
             Objetivo: Negociar de forma natural e fechar o serviço de criação de anúncios de alta conversão.
             Produto: {script.get('metadata', {}).get('product', 'Layouts de Anúncios')}
             Preço Base: {script.get('metadata', {}).get('price', 'R$ 150')}
             Desconto Máximo Permitido: {script.get('metadata', {}).get('max_discount', '20%')}
-            
-            Roteiro da campanha:
-            - Contraposta sugerida: "{script.get('counter_proposal', '')}"
+
+            Roteiro:
+            - Contraposta: "{script.get('counter_proposal', '')}"
             - Fechamento: "{script.get('closing_message', '')}"
-            
+            {history_context}
             Mensagem recebida do cliente: "{message}"
-            
-            Diretrizes de Conversação Humana e Natural:
-            1. Seja EXTREMAMENTE conciso. Máximo 1 ou 2 frases curtas. Mensagens grandes no WhatsApp parecem robóticas e cansam o cliente.
-            2. Use tom de conversa brasileiro casual (por exemplo, use 'total', 'show', 'opa', 'blz', 'valeu').
-            3. NUNCA use frases formais de IA como 'Com certeza!', 'Entendo perfeitamente.', 'Olá! Como posso te ajudar hoje?'.
-            4. Se o cliente perguntar o preço, tente ancorar o valor de {script.get('metadata', {}).get('price', 'R$ 150')}, mas se ele chorar ou hesitar, aplique o desconto de até {script.get('metadata', {}).get('max_discount', '20%')} de forma natural.
-            5. Sempre termine com uma pergunta curta que incentive a resposta, mantendo o fluxo da negociação.
-            
-            Responda APENAS com a mensagem exata para enviar no WhatsApp, sem aspas, comentários ou explicações.
+
+            Diretrizes:
+            1. Seja EXTREMAMENTE conciso. Máximo 1-2 frases curtas.
+            2. Use tom casual brasileiro ('total', 'show', 'opa', 'blz', 'valeu').
+            3. NUNCA use frases formais de IA como 'Com certeza!', 'Entendo perfeitamente.'.
+            4. Se perguntarem preço, ancore em {script.get('metadata', {}).get('price', 'R$ 150')}, mas aplique desconto de até {script.get('metadata', {}).get('max_discount', '20%')} se hesitar.
+            5. Sempre termine com uma pergunta curta.
+            6. Considere o histórico da conversa para não repetir informações já ditas.
+
+            Responda APENAS com a mensagem exata para enviar, sem aspas ou explicações.
             """
-            
+
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 contents=prompt
             )
             reply = response.text.strip()
-            reply = reply.replace('"', '').strip()
+            if reply.startswith('"') and reply.endswith('"'):
+                reply = reply[1:-1].strip()
             return reply
-            
+
         except Exception as e:
-            print(f"[Gemini Negotiation Error] {e}. Usando fallback local...")
+            print(f"[Gemini Negotiation Error] {e}. Usando fallback...")
             return "Entendo total. Se quiser ver uns exemplos rápidos de anúncios que já criei para lojas parecidas, posso te mandar por aqui. O que acha?"
-def whatsapp_web_action(parameters, player=None):
+
+async def _run_whatsapp_action(parameters, player):
     action = parameters.get("action")
-    target = parameters.get("target") # Name or number
+    target = parameters.get("target")
     message = parameters.get("message")
     product = parameters.get("product")
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
     wa = WhatsAppWeb()
-    
     try:
+        await wa.start()
         if action == "send":
-            loop.run_until_complete(wa.start())
-            loop.run_until_complete(wa.open_chat(target))
-            loop.run_until_complete(wa.send_message(message))
+            await wa.open_chat(target)
+            await wa.send_message(message)
             return f"Message sent to {target}."
-            
+
         elif action == "autonomous":
-            loop.run_until_complete(wa.start())
             if target == "leads_results" or not target:
-                loop.run_until_complete(wa.multi_autonomous_loop(product, player))
+                await wa.multi_autonomous_loop(product, player)
             else:
-                loop.run_until_complete(wa.open_chat(target))
-                loop.run_until_complete(wa.autonomous_loop(product, player))
+                await wa.open_chat(target)
+                await wa.autonomous_loop(product, player)
             return "Autonomous loop finished."
-            
+
+        elif action == "guard":
+            timeout = parameters.get("timeout_minutes", 60)
+            await wa.open_chat(target)
+            await wa.guard_loop(target, message=message, player=player, timeout_minutes=timeout)
+            return f"Guard mode ended for {target}."
+    except asyncio.CancelledError:
+        print("[WhatsApp] Action cancelled by user.")
+        return "WhatsApp action cancelled."
+    finally:
+        wa._stop = True
+        wa._stop_event.set()
+        await wa.stop()
+
+def whatsapp_web_action(parameters, player=None):
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_run_whatsapp_action(parameters, player))
     except Exception as e:
         return f"WhatsApp error: {e}"
     finally:
-        loop.run_until_complete(wa.stop())
-        loop.close()
+        try:
+            loop.close()
+        except Exception:
+            pass

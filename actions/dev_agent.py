@@ -447,11 +447,11 @@ def _build_project(
     try:
         plan = _plan_project(description, language)
     except RateLimitError:
-        msg = "Rate limit reached, sir. Please try again in a moment."
+        msg = "Limite de requisições atingido, senhor. Por favor, tente novamente em alguns instantes."
         if speak: speak(msg)
         return msg
     except ValueError as e:
-        msg = f"Planning failed: {e}"
+        msg = f"A etapa de planejamento falhou: {e}"
         if speak: speak(msg)
         return msg
 
@@ -504,7 +504,7 @@ def _build_project(
                 break
 
     if not file_codes:
-        msg = "I could not write any project files, sir."
+        msg = "Não consegui gerar nenhum arquivo do projeto, senhor."
         if speak: speak(msg)
         return msg
 
@@ -524,9 +524,9 @@ def _build_project(
 
         if not _has_error(last_output, run_command):
             msg = (
-                f"Project '{proj_name}' is working, sir. "
-                f"Built in {attempt} attempt{'s' if attempt > 1 else ''}. "
-                f"Saved to: {project_dir}"
+                f"O projeto '{proj_name}' está funcionando perfeitamente, senhor. "
+                f"Desenvolvido em {attempt} tentativa{'s' if attempt > 1 else ''}. "
+                f"Salvo em: {project_dir}"
             )
             if speak: speak(msg)
             return f"{msg}\n\nOutput:\n{last_output}"
@@ -557,15 +557,15 @@ def _build_project(
             file_codes.update(updated)
             time.sleep(1)
         except RateLimitError:
-            msg = "Rate limit reached during fix. Project saved, check it manually in VSCode."
+            msg = "Limite de requisições atingido durante a correção, senhor. O projeto foi salvo, por favor verifique manualmente no VSCode."
             if speak: speak(msg)
             return msg
         except Exception as e:
             log(f"Fix step failed: {e}")
 
     msg = (
-        f"I couldn't fully fix '{proj_name}' after {MAX_FIX_ATTEMPTS} attempts, sir. "
-        f"Project is saved at {project_dir} — open it in VSCode and check manually."
+        f"Não consegui corrigir completamente o projeto '{proj_name}' após {MAX_FIX_ATTEMPTS} tentativas, senhor. "
+        f"Os arquivos foram salvos em {project_dir} — abra no VSCode para verificar."
     )
     if speak: speak(msg)
     return f"{msg}\n\nLast error:\n{last_output[:600]}"
@@ -585,7 +585,7 @@ def dev_agent(
     timeout      = int(p.get("timeout", 30))
 
     if not description:
-        return "Please describe the project you want me to build, sir."
+        return "Por favor, descreva o projeto que deseja que eu desenvolva, senhor."
 
     return _build_project(
         description  = description,

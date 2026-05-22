@@ -30,7 +30,7 @@ def _run_generated_code(description: str, speak: Callable | None = None) -> str:
     import agent.local_genai as genai
 
     if speak:
-        speak("Writing custom code for this task, sir.")
+        speak("Escrevendo um código personalizado para esta tarefa, senhor.")
 
     home      = Path.home()
     desktop   = home / "Desktop"
@@ -249,6 +249,34 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         send_notification(title, message)
         return "Notification sent."
 
+    elif tool == "whatsapp_web":
+        from actions.whatsapp_web import whatsapp_web_action
+        return whatsapp_web_action(parameters=parameters, player=None) or "Done."
+
+    elif tool == "apify_leads":
+        from actions.apify_leads import apify_leads
+        return apify_leads(parameters=parameters) or "Done."
+
+    elif tool == "negotiation_script":
+        from actions.negotiation_script import negotiation_script_action
+        return negotiation_script_action(parameters=parameters) or "Done."
+
+    elif tool == "manage_memory":
+        from memory.memory_manager import manage_memory
+        return manage_memory(parameters) or "Done."
+
+    elif tool == "self_repair":
+        from actions.self_repair import run_diagnostics_and_repair
+        return run_diagnostics_and_repair(parameters=parameters, player=None, speak=speak) or "Done."
+
+    elif tool == "manage_crm":
+        from actions.leads_manager import manage_crm
+        return manage_crm(parameters=parameters) or "Done."
+
+    elif tool == "refresh_geopolitics":
+        from actions.geopolitics_monitor import fetch_geopolitics_news
+        return fetch_geopolitics_news()
+
     else:
         print(f"[Executor] [WARNING] Unknown tool '{tool}' - falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
@@ -274,7 +302,7 @@ class AgentExecutor:
             steps = plan.get("steps", [])
 
             if not steps:
-                msg = "I couldn't create a valid plan for this task, sir."
+                msg = "Não foi possível elaborar um protocolo para esta tarefa, senhor."
                 if speak: speak(msg)
                 return msg
 
@@ -284,7 +312,7 @@ class AgentExecutor:
 
             for step in steps:
                 if cancel_flag and cancel_flag.is_set():
-                    if speak: speak("Task cancelled, sir.")
+                    if speak: speak("Protocolo cancelado, senhor.")
                     return "Task cancelled."
 
                 step_num = step.get("step", "?")
@@ -333,7 +361,7 @@ class AgentExecutor:
                             break
 
                         elif decision == ErrorDecision.ABORT:
-                            msg = f"Task aborted, sir. {recovery.get('reason', '')}"
+                            msg = f"Protocolo abortado, senhor. Motivo: {recovery.get('reason', '')}"
                             if speak: speak(msg)
                             return msg
 
@@ -342,7 +370,7 @@ class AgentExecutor:
                             if fix_suggestion and tool != "generated_code":
                                 try:
                                     fixed_step = generate_fix(step, error_msg, fix_suggestion)
-                                    if speak: speak("Trying an alternative approach, sir.")
+                                    if speak: speak("Tentando uma abordagem alternativa, senhor.")
                                     res = _call_tool(
                                         fixed_step["tool"],
                                         fixed_step["parameters"],
@@ -369,30 +397,37 @@ class AgentExecutor:
                     break
 
             if success:
-                return self._summarize(goal, completed_steps, speak)
+                return self._summarize(goal, completed_steps, speak, step_results)
 
             if replan_attempts >= self.MAX_REPLAN_ATTEMPTS:
-                msg = f"Task failed after {replan_attempts} replan attempts, sir."
+                msg = f"O protocolo falhou após {replan_attempts} tentativas de replanejamento, senhor."
                 if speak: speak(msg)
                 return msg
 
-            if speak: speak("Adjusting my approach, sir.")
+            if speak: speak("Ajustando minha abordagem, senhor.")
 
             replan_attempts += 1
             plan = replan(goal, completed_steps, failed_step, failed_error)
 
-    def _summarize(self, goal: str, completed_steps: list, speak: Callable | None) -> str:
-        fallback = f"All done, sir. Completed {len(completed_steps)} steps for: {goal[:60]}."
+    def _summarize(self, goal: str, completed_steps: list, speak: Callable | None, step_results: dict | None = None) -> str:
+        fallback = f"Protocolo finalizado com sucesso, senhor. Concluí as etapas para: {goal[:60]}."
         try:
             import agent.local_genai as genai
             genai.configure(api_key=_get_api_key())
             model     = genai.GenerativeModel(model_name="gemini-2.5-flash-lite")
             steps_str = "\n".join(f"- {s.get('description', '')}" for s in completed_steps)
+            results_str = ""
+            if step_results:
+                results_str = "\n".join(f"- Etapa {k}: {str(v)[:150]}" for k, v in step_results.items())
+            
             prompt    = (
                 f'User goal: "{goal}"\n'
-                f"Completed steps:\n{steps_str}\n\n"
-                "Write a single natural sentence summarizing what was accomplished. "
-                "Address the user as 'sir'. Be direct and positive."
+                f"Completed steps:\n{steps_str}\n"
+                f"Step results:\n{results_str}\n\n"
+                "Escreva uma única frase natural em português brasileiro resumindo o que foi REALMENTE realizado baseado nos resultados reais de cada etapa acima. "
+                "Fale de maneira formal, inteligente e prestativa como o J.A.R.V.I.S. de Tony Stark. "
+                "Sempre fale na primeira pessoa do singular ('eu fiz', 'eu enviei', etc.) representando suas ações, "
+                "e trate o usuário como 'senhor'."
             )
             response = model.generate_content(prompt)
             summary  = response.text.strip()

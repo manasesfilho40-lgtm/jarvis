@@ -109,7 +109,13 @@ class GenerativeModel:
                 try:
                     return self._generate_via_gemini(prompt, api_key)
                 except Exception as e:
-                    print(f"[LocalGenAI] ⚠️ Gemini failed: {e}. Falling back to local Llama 3...")
+                    print(f"[LocalGenAI] ⚠️ Gemini failed: {e}.")
+                    try:
+                        from core.api_rotator import rotate_api_key
+                        rotate_api_key()
+                    except Exception:
+                        pass
+                    print("[LocalGenAI] Falling back to local Llama 3...")
             else:
                 print("[LocalGenAI] ⚠️ Gemini API key not found. Routing to local Llama...")
                 
@@ -175,6 +181,13 @@ TOOLS:
 - reminder: {date, time, message}
 - youtube_video: {action: "play"|"summarize", query}
 - computer_control: {action: "click"|"type"|"hotkey"|"press", text, x, y, keys, key}
+- apify_leads: {actor_id: "compass/crawler-google-places", input_data: {"searchStringsArray": ["lojas de roupa em São Paulo"], "maxResults": 10}}
+- whatsapp_web: {action: "send"|"autonomous"|"guard", target: "leads_results"|phone_number, message, product, timeout_minutes}
+- negotiation_script: {action: "generate"|"load", product, price, max_discount, tone}
+- manage_memory: {action: "store"|"retrieve"|"get_all", key, value}
+- manage_crm: {action: "stats"|"list"|"get"|"mark_used"|"delete"|"clear", query, status, limit, phone}
+- refresh_geopolitics: {}
+- self_repair: {}
 
 Return ONLY valid JSON in this exact structure:
 {"goal": "...", "steps": [{"step": 1, "tool": "tool_name", "description": "...", "parameters": {}}]}"""

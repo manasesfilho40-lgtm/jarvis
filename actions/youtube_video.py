@@ -164,11 +164,11 @@ def _summarize_with_gemini(transcript: str, video_url: str) -> str:
     model = genai.GenerativeModel(
         model_name="gemini-2.5-flash",
         system_instruction=(
-            "You are JARVIS, an AI assistant. "
-            "Summarize YouTube video transcripts clearly and concisely. "
-            "Structure: 1-sentence overview, then 3-5 key points. "
-            "Be direct. Address the user as 'sir'. "
-            "Match the language of the transcript."
+            "Você é o JARVIS, assistente de IA. "
+            "Resuma a transcrição do vídeo do YouTube de forma clara e concisa. "
+            "Estrutura: visão geral de 1 frase, seguida de 3-5 pontos principais. "
+            "Seja direto. Trate o usuário como 'senhor' e use a primeira pessoa do singular para suas ações. "
+            "Responda sempre em português brasileiro (pt-BR)."
         )
     )
 
@@ -271,7 +271,7 @@ def _scrape_trending(region: str = "TR", max_results: int = 8) -> list[dict]:
 def _handle_play(parameters: dict, player) -> str:
     query = parameters.get("query", "").strip()
     if not query:
-        return "Please tell me what you'd like to watch, sir."
+        return "Por favor, diga-me o que gostaria de assistir, senhor."
 
     if player:
         player.write_log(f"[YouTube] Searching: {query}")
@@ -283,7 +283,7 @@ def _handle_play(parameters: dict, player) -> str:
     if video_url:
         print(f"[YouTube] Opening: {video_url}")
         _open_url(video_url)
-        return f"Playing: {query}"
+        return f"Reproduzindo: {query}"
 
     print(f"[YouTube] Scrape failed, opening filtered search page")
     fallback_url = (
@@ -292,46 +292,46 @@ def _handle_play(parameters: dict, player) -> str:
         f"&sp={_YT_VIDEO_FILTER}"
     )
     _open_url(fallback_url)
-    return f"Opened YouTube search for: {query} (manual selection required)"
+    return f"Abri a pesquisa do YouTube para: {query} (necessário seleção manual)"
 
 
 def _handle_summarize(parameters: dict, player, speak) -> str:
     if not _TRANSCRIPT_OK:
-        return "youtube-transcript-api is not installed. Run: pip install youtube-transcript-api"
+        return "A biblioteca youtube-transcript-api não está instalada. Execute: pip install youtube-transcript-api"
 
-    url = _ask_for_url("Please paste the YouTube video URL:")
+    url = _ask_for_url("Por favor, cole a URL do vídeo do YouTube:")
     if not url:
-        return "No URL provided, sir. Summary cancelled."
+        return "Nenhuma URL informada, senhor. Resumo cancelado."
     if not _is_valid_youtube_url(url):
-        return "That doesn't appear to be a valid YouTube URL, sir."
+        return "Essa não parece ser uma URL válida do YouTube, senhor."
 
     video_id = _extract_video_id(url)
     if not video_id:
-        return "Could not extract video ID from that URL, sir."
+        return "Não foi possível extrair o ID do vídeo a partir dessa URL, senhor."
 
     if player:
         player.write_log(f"[YouTube] Summarizing: {url}")
     if speak:
-        speak("Fetching the transcript now, sir. One moment.")
+        speak("Buscando a transcrição do vídeo, senhor. Um momento.")
 
     transcript = _get_transcript(video_id)
     if not transcript:
-        return "I couldn't retrieve a transcript for that video, sir."
+        return "Não consegui recuperar a transcrição para esse vídeo, senhor."
 
     if speak:
-        speak("Transcript retrieved. Generating summary now.")
+        speak("Transcrição obtida. Gerando o resumo neste instante.")
 
     try:
         summary = _summarize_with_gemini(transcript, url)
     except Exception as e:
-        return f"Summary generation failed, sir: {e}"
+        return f"Falha na geração do resumo, senhor: {e}"
 
     if speak:
         speak(summary)
 
     if parameters.get("save", False):
         saved_path = _save_summary(summary, url)
-        return f"Summary complete and saved to Desktop: {saved_path}"
+        return f"Resumo concluído e salvo na Área de Trabalho: {saved_path}"
 
     return summary
 
@@ -339,20 +339,20 @@ def _handle_summarize(parameters: dict, player, speak) -> str:
 def _handle_get_info(parameters: dict, player, speak) -> str:
     url = parameters.get("url", "").strip()
     if not url:
-        url = _ask_for_url("Please paste the YouTube video URL:")
+        url = _ask_for_url("Por favor, cole a URL do vídeo do YouTube:")
     if not url or not _is_valid_youtube_url(url):
-        return "Please provide a valid YouTube URL, sir."
+        return "Por favor, forneça uma URL válida do YouTube, senhor."
 
     video_id = _extract_video_id(url)
     if not video_id:
-        return "Could not extract video ID, sir."
+        return "Não foi possível extrair o ID do vídeo, senhor."
 
     if player:
         player.write_log(f"[YouTube] Getting info: {url}")
 
     info = _scrape_video_info(video_id)
     if not info:
-        return "Could not retrieve video information, sir."
+        return "Não foi possível recuperar as informações do vídeo, senhor."
 
     lines = [
         f"{key.capitalize()}: {info[key]}"
@@ -362,7 +362,7 @@ def _handle_get_info(parameters: dict, player, speak) -> str:
     result = "\n".join(lines)
 
     if speak:
-        speak(f"Here's the video info, sir. {result.replace(chr(10), '. ')}")
+        speak(f"Aqui estão as informações do vídeo, senhor. {result.replace(chr(10), '. ')}")
 
     return result
 
@@ -375,16 +375,16 @@ def _handle_trending(parameters: dict, player, speak) -> str:
 
     trending = _scrape_trending(region=region, max_results=8)
     if not trending:
-        return f"Could not fetch trending videos for region {region}, sir."
+        return f"Não foi possível obter os vídeos em alta para a região {region}, senhor."
 
-    lines  = [f"Top trending videos in {region}:"]
+    lines  = [f"Vídeos em alta em {region}:"]
     lines += [f"{v['rank']}. {v['title']} — {v['channel']}" for v in trending]
     result = "\n".join(lines)
 
     if speak:
         top3   = trending[:3]
-        spoken = "Here are the top trending videos, sir. " + ". ".join(
-            f"Number {v['rank']}: {v['title']} by {v['channel']}" for v in top3
+        spoken = "Aqui estão os vídeos em alta no momento, senhor. " + ". ".join(
+            f"Número {v['rank']}: {v['title']} do canal {v['channel']}" for v in top3
         )
         speak(spoken)
 
@@ -425,4 +425,4 @@ def youtube_video(
         return handler(params, player, speak) or "Done."
     except Exception as e:
         print(f"[YouTube] Error in {action}: {e}")
-        return f"YouTube {action} failed, sir: {e}"
+        return f"A ação {action} do YouTube falhou, senhor: {e}"

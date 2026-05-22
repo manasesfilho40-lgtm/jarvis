@@ -1,6 +1,16 @@
+import sys
 import time
+import builtins
 import subprocess
 from actions.open_app import open_app
+
+def print(*args, **kwargs):
+    if sys.stdout is None:
+        return
+    try:
+        builtins.print(*args, **kwargs)
+    except Exception:
+        pass
 
 def main():
     print("[Startup] Running automatic actions...")

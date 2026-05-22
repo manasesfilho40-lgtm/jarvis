@@ -69,8 +69,18 @@ from actions.clap_detector     import ClapDetector
 from actions.apify_leads       import apify_leads
 from actions.whatsapp_web     import whatsapp_web_action
 from actions.negotiation_script import negotiation_script_action
+from actions.geopolitics_monitor import fetch_geopolitics_news
 
 clap_detector = None
+
+def _run_geopolitics_refresh() -> str:
+    """Triggers a geopolitics news refresh and pushes to UI."""
+    try:
+        news_json = fetch_geopolitics_news()
+        ui.update_geopolitics(news_json)
+        return "Notícias geopolíticas atualizadas com sucesso."
+    except Exception as e:
+        return f"Erro ao atualizar notícias: {e}"
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -81,7 +91,7 @@ def get_base_dir():
 BASE_DIR        = get_base_dir()
 API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 PROMPT_PATH     = BASE_DIR / "core" / "prompt.txt"
-LIVE_MODEL          = "models/gemini-2.0-flash-live"
+LIVE_MODEL          = "models/gemini-3.1-flash-live-preview"
 CHANNELS            = 1
 SEND_SAMPLE_RATE    = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -108,12 +118,17 @@ def _load_system_prompt() -> str:
     full_prompt += "\nALWAYS respond in Brazilian Portuguese (pt-BR). Your user is Brazilian. NUNCA fale inglês."
     full_prompt += "\nNUNCA escreva scripts de código ou tente programar rotinas para enviar WhatsApp. O sistema já está 100% pronto. Você deve APENAS chamar a tool 'whatsapp_web' diretamente."
     full_prompt += "\nWhen sending WhatsApp messages, ALWAYS use the whatsapp_web tool with action='send', never use send_message for WhatsApp."
+    full_prompt += "\nWHATSAPP ACTIONS: Use action='send' para enviar UMA mensagem e fechar. Use action='guard' para enviar mensagem e FICAR DE OLHO no chat aguardando resposta do lead (fica monitorando por 60min e notifica quando o lead responde). Use action='autonomous' para prospecção em massa com leads do CRM."
     full_prompt += "\nNUNCA diga que já fez algo ou que 'houve erro no script' sem REALMENTE chamar a tool. Você DEVE chamar a tool pre-built e esperar o resultado."
     full_prompt += "\nNUNCA responda a si mesmo. Só fale quando o USUÁRIO falar com você. Se não ouviu nada do usuário, fique em SILÊNCIO ABSOLUTO."
     full_prompt += "\nNÃO faça perguntas retóricas e responda a elas. Espere o usuário responder."
     full_prompt += "\nREGRA CRÍTICA DE SILÊNCIO: Se o turno de áudio do usuário estiver vazio, em branco, ou contiver apenas ruído/silêncio, NÃO responda NADA. Fique completamente mudo."
     full_prompt += "\nNUNCA invente ou hallucine erros. Se uma tool retornar 'Done.' ou qualquer resultado, comunique o resultado real ao usuário. Não diga que houve erro se não houve."
     full_prompt += "\nQuando o usuário pedir para buscar leads, chame IMEDIATAMENTE a tool 'apify_leads' com os parâmetros corretos. Não explique o que vai fazer, apenas FAÇA."
+    full_prompt += "\nFLUXO DE PROSPECÇÃO COMPLETO: Quando o usuário pedir para buscar leads E enviar mensagens (ex: 'encontre leads em SP e mande mensagem'), você DEVE chamar DUAS tools em sequência: 1) 'apify_leads' com actor_id='compass/crawler-google-places' e input_data contendo searchStringsArray com a busca desejada. 2) 'whatsapp_web' com action='autonomous', target='leads_results' e product descrevendo o produto/serviço. Chame uma após a outra, SEM esperar a primeira terminar — o Apify roda em background e o WhatsApp vai pegar os leads do CRM automaticamente."
+    full_prompt += "\nCRM DE LEADS: Use a tool 'manage_crm' para consultar seus leads. Ações: 'stats' (resumo), 'list' (lista com filtros), 'get' (detalhes), 'mark_used' (contactado), 'delete' (remove um lead), 'clear' (limpa todos). Exemplo: 'apaga todos os leads usados' → manage_crm(action='clear', status='used')."
+    full_prompt += "\nPERSONALIDADE: Fale de forma extremamente polida, leal e formal, como o J.A.R.V.I.S. de Tony Stark. Trate o usuário sempre como 'senhor'."
+    full_prompt += "\nPRIMEIRA PESSOA: Como você é o assistente virtual executando as ferramentas, use SEMPRE a primeira pessoa do singular ('eu fiz', 'eu enviei', 'eu abri', 'eu pesquisei') ao relatar o sucesso de uma ação realizada pelas ferramentas, e NUNCA a segunda pessoa ('você enviou', 'você abriu')."
     return full_prompt
 
 _CTRL_RE = re.compile(r"<ctrl\d+>", re.IGNORECASE)
@@ -138,6 +153,7 @@ class JarvisLive:
         self._speaking_lock = threading.Lock()
         self.ui.on_text_command = self._on_text_command
         self._turn_done_event: asyncio.Event | None = None
+        self._last_text_input = None
 
     def _on_text_command(self, text: str):
         # Filtra comandos locais dos cards para evitar que a IA chame ferramentas indevidas
@@ -167,16 +183,11 @@ class JarvisLive:
 
         if text == "start lead generation prospecting":
             self.ui.write_log("SYS: Iniciando busca automatizada de leads no Apify...")
-            def _run():
-                try:
-                    res = apify_leads({
-                        "actor_id": "apify/google-maps-scraper",
-                        "input_data": {"searchStringsArray": ["advogados em São Paulo"], "maxResults": 10}
-                    })
-                    self.ui.write_log(f"SYS: {res}")
-                except Exception as e:
-                    self.ui.write_log(f"ERR: {e}")
-            threading.Thread(target=_run, daemon=True).start()
+            res = apify_leads(parameters={
+                "actor_id": "compass/crawler-google-places",
+                "input_data": {"searchStringsArray": ["advogados em São Paulo"], "maxResults": 10}
+            })
+            self.ui.write_log(f"SYS: {res}")
             return
 
         if text == "stop lead generation prospecting":
@@ -236,7 +247,7 @@ class JarvisLive:
                 brain_desc = "via cérebro local Llama 3"
             else:
                 brain_desc = "via cérebro híbrido (Gemini/Llama)"
-            self.ui.write_log(f"SYS: Offline. Executando '{text}' {brain_desc}...")
+            self.ui.write_log(f"JARVIS: Senhor, o sistema está offline. Executando '{text}' {brain_desc}...")
             from agent.task_queue import get_queue, TaskPriority
             def ui_speak(msg):
                 print(f"[JARVIS] 🗣️ {msg}")
@@ -245,6 +256,15 @@ class JarvisLive:
                     try:
                         import win32com.client
                         speaker = win32com.client.Dispatch("SAPI.SpVoice")
+                        try:
+                            for v in speaker.GetVoices():
+                                desc = v.GetDescription().lower() if hasattr(v, "GetDescription") else ""
+                                lang_id = v.Id.lower() if hasattr(v, "Id") else ""
+                                if "language=416" in lang_id or "language=816" in lang_id or "portug" in desc:
+                                    speaker.Voice = v
+                                    break
+                        except Exception as voice_err:
+                            print(f"[TTS Voice Selector Warning] {voice_err}")
                         speaker.Speak(msg)
                     except Exception as tts_err:
                         print(f"[TTS Error] {tts_err}")
@@ -257,10 +277,19 @@ class JarvisLive:
             )
             return
             
+        was_muted = self.ui.muted
+        self._last_text_input = text
         asyncio.run_coroutine_threadsafe(
             self.session.send(input=text, end_of_turn=True),
             self._loop
         )
+        def _restore_mute():
+            import time as _t
+            _t.sleep(0.3)
+            if was_muted:
+                self.ui.muted = True
+                self.ui.set_state("MUTED")
+        threading.Thread(target=_restore_mute, daemon=True).start()
 
     def set_speaking(self, value: bool):
         global clap_detector
@@ -296,17 +325,23 @@ class JarvisLive:
                 self.ui.set_state("MUTED")
 
     def speak(self, text: str):
-        if not self._loop or not self.session:
+        if not self._loop or not self.session or self.ui.muted:
             return
-        asyncio.run_coroutine_threadsafe(
-            self.session.send(input=text, end_of_turn=True),
-            self._loop
-        )
+        async def _send():
+            await self.session.send_client_content(
+                turns=types.Content(
+                    role="model",
+                    parts=[types.Part(text=text)]
+                ),
+                turn_complete=True
+            )
+        asyncio.run_coroutine_threadsafe(_send(), self._loop)
 
     def speak_error(self, tool_name: str, error: str):
         short = str(error)[:120]
         self.ui.write_log(f"ERR: {tool_name} — {short}")
-        self.speak(f"Sir, {tool_name} encountered an error. {short}")
+        if not self.ui.muted:
+            self.speak(f"Sir, {tool_name} encountered an error. {short}")
 
     def _build_config(self) -> types.LiveConnectConfig:
         from datetime import datetime
@@ -326,6 +361,15 @@ class JarvisLive:
         if mem_str:
             parts.append(mem_str)
         parts.append(sys_prompt)
+
+        # Get recent context from Obsidian Conversas.md
+        try:
+            from memory.obsidian_manager import get_recent_history
+            recent_history = get_recent_history(limit=15)
+            if recent_history:
+                parts.append(f"\n[RECENT CONVERSATION HISTORY]\n{recent_history}\n")
+        except Exception as e:
+            print(f"[Obsidian Memory Sync Warning] Could not load history: {e}")
 
         return types.LiveConnectConfig(
             response_modalities=["AUDIO"],
@@ -364,6 +408,18 @@ class JarvisLive:
         loop   = asyncio.get_event_loop()
         result = "Done."
 
+        def _run_in_new_thread(fn, args, player):
+            import threading
+            result = [None]
+            def _target():
+                try:
+                    result[0] = fn(parameters=args, player=player)
+                except Exception as e:
+                    result[0] = f"Error: {e}"
+            t = threading.Thread(target=_target, daemon=True)
+            t.start()
+            return "Task started in background. Check logs for completion."
+
         try:
             # Dictionary for tools that run in executor
             executor_tools = {
@@ -381,13 +437,16 @@ class JarvisLive:
                 "dev_agent": lambda: dev_agent(parameters=args, player=self.ui, speak=self.speak),
                 "web_search": lambda: web_search_action(parameters=args, player=self.ui),
                 "file_processor": lambda: file_processor(parameters=args, player=self.ui, speak=self.speak),
-                "apify_leads": lambda: apify_leads(args),
+                "apify_leads": lambda: apify_leads(parameters=args),
                 "computer_control": lambda: computer_control(parameters=args, player=self.ui),
                 "game_updater": lambda: game_updater(parameters=args, player=self.ui, speak=self.speak),
                 "flight_finder": lambda: flight_finder(parameters=args, player=self.ui),
-                "whatsapp_web": lambda: whatsapp_web_action(parameters=args, player=self.ui),
+                "whatsapp_web": lambda: _run_in_new_thread(whatsapp_web_action, args, self.ui),
                 "negotiation_script": lambda: negotiation_script_action(parameters=args, player=self.ui),
-                "notifier": lambda: __import__("actions.notifier", fromlist=["send_notification"]).send_notification(args.get("title", "Alert"), args.get("message", ""))
+                "notifier": lambda: __import__("actions.notifier", fromlist=["send_notification"]).send_notification(args.get("title", "Alert"), args.get("message", "")),
+                "self_repair": lambda: __import__("actions.self_repair", fromlist=["run_diagnostics_and_repair"]).run_diagnostics_and_repair(args, self.ui, self.speak),
+                "manage_crm": lambda: __import__("actions.leads_manager", fromlist=["manage_crm"]).manage_crm(args),
+                "refresh_geopolitics": lambda: _run_geopolitics_refresh()
             }
 
             if name in executor_tools:
@@ -496,7 +555,7 @@ class JarvisLive:
         try:
             stream = None
             while True:
-                should_be_active = not self.ui.muted
+                should_be_active = True
                 if should_be_active and stream is None:
                     print("[JARVIS] 🎤 Mic stream opening...")
                     stream = sd.InputStream(
@@ -566,6 +625,10 @@ class JarvisLive:
                                 self._turn_done_event.set()
 
                             full_in = " ".join(in_buf).strip()
+                            if not full_in and self._last_text_input:
+                                full_in = self._last_text_input
+                            self._last_text_input = None
+
                             if full_in:
                                 self.ui.write_log(f"You: {full_in}")
                             in_buf = []
@@ -574,6 +637,14 @@ class JarvisLive:
                             if full_out:
                                 self.ui.write_log(f"Jarvis: {full_out}")
                             out_buf = []
+
+                            # Save turn to Obsidian Conversas.md
+                            if full_in or full_out:
+                                try:
+                                    from memory.obsidian_manager import add_to_history
+                                    add_to_history(full_in, full_out)
+                                except Exception as e:
+                                    print(f"[Obsidian Memory Sync Warning] Could not save history: {e}")
 
                     if response.tool_call:
                         fn_responses = []
@@ -617,6 +688,10 @@ class JarvisLive:
                         self._turn_done_event.clear()
                     continue
                 self.set_speaking(True)
+                if self.ui.muted:
+                    if hasattr(self.audio_in_queue, 'task_done'):
+                        self.audio_in_queue.task_done()
+                    continue
                 
                 # Dynamic Particle Sync: Calcula o volume do áudio
                 audio_data = np.frombuffer(chunk, dtype=np.int16)
@@ -635,13 +710,12 @@ class JarvisLive:
             stream.close()
 
     async def run(self):
-        client = genai.Client(
-            api_key=_get_api_key(),
-            http_options={"api_version": "v1beta"}
-        )
-
         while True:
             try:
+                client = genai.Client(
+                    api_key=_get_api_key(),
+                    http_options={"api_version": "v1beta"}
+                )
                 print("[JARVIS] 🔌 Connecting...")
                 self.ui.set_state("THINKING")
                 config = self._build_config()
@@ -657,7 +731,11 @@ class JarvisLive:
                     self._turn_done_event = asyncio.Event()
 
                     print("[JARVIS] ✅ Connected.")
-                    self.ui.set_state("LISTENING")
+                    # Respeita mute anterior após reconexão
+                    if self.ui.muted:
+                        self.ui.set_state("MUTED")
+                    else:
+                        self.ui.set_state("LISTENING")
                     self.ui.write_log("SYS: JARVIS online.")
 
                     tg.create_task(self._send_realtime())
@@ -672,11 +750,16 @@ class JarvisLive:
                 self._loop = None
                 err_str = str(e).upper()
                 if "RESOURCE_EXHAUSTED" in err_str or "API_KEY_INVALID" in err_str or "429" in err_str or "QUOTA" in err_str:
-                    self.ui.write_log("SYS: Gemini API Quota Exceeded / Invalid. Local Llama 3 mode activated!")
-                    self.ui.set_state("LISTENING")
-                    # Sleep longer to avoid hammering the exhausted API key
-                    await asyncio.sleep(60)
-                    continue
+                    from core.api_rotator import rotate_api_key
+                    if rotate_api_key():
+                        self.ui.write_log("SYS: Limite de cota atingido. Rotacionando chave de API...")
+                        await asyncio.sleep(3)
+                        continue
+                    else:
+                        self.ui.write_log("SYS: Limite de cota atingido. Modo Llama 3 local ativado!")
+                        self.ui.set_state("LISTENING")
+                        await asyncio.sleep(60)
+                        continue
             self.set_speaking(False)
             self.ui.set_state("THINKING")
             print("[JARVIS] 🔄 Reconnecting in 3s...")
@@ -689,6 +772,12 @@ def main():
     if not config_path.exists() and example_path.exists():
         shutil.copy(example_path, config_path)
         print("[JARVIS] api_keys.json criado a partir do exemplo. Configure sua chave Gemini em config/api_keys.json")
+    
+    try:
+        from memory.obsidian_manager import ensure_vault
+        ensure_vault()
+    except Exception as e:
+        print(f"[Obsidian Warning] Could not initialize vault: {e}")
     try:
         ui = JarvisUI()
 
@@ -719,6 +808,21 @@ def main():
         def runner():
             try:
                 ui.wait_for_api_key()
+                
+                def geopolitics_updater():
+                    import time
+                    from actions.geopolitics_monitor import fetch_geopolitics_news
+                    time.sleep(5)
+                    while True:
+                        try:
+                            news_json = fetch_geopolitics_news()
+                            ui.update_geopolitics(news_json)
+                        except Exception as ex:
+                            print(f"[JARVIS UI GEOPOLITICS UPDATER ERROR] {ex}")
+                        time.sleep(300)
+
+                threading.Thread(target=geopolitics_updater, daemon=True).start()
+
                 jarvis = JarvisLive(ui)
                 asyncio.run(jarvis.run())
             except Exception as e:

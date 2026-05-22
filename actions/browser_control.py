@@ -23,14 +23,25 @@ _OS = platform.system()   # "Windows" | "Darwin" | "Linux"
 import builtins
 import sys
 def print(*args, **kwargs):
+    if sys.stdout is None:
+        return
     safe_args = []
-    enc = sys.stdout.encoding or "utf-8"
+    try:
+        enc = getattr(sys.stdout, 'encoding', None) or "utf-8"
+    except Exception:
+        enc = "utf-8"
     for arg in args:
         if isinstance(arg, str):
-            safe_args.append(arg.encode(enc, errors="replace").decode(enc))
+            try:
+                safe_args.append(arg.encode(enc, errors="replace").decode(enc))
+            except Exception:
+                safe_args.append(arg)
         else:
             safe_args.append(arg)
-    builtins.print(*safe_args, **kwargs)
+    try:
+        builtins.print(*safe_args, **kwargs)
+    except Exception:
+        pass
 
 
 def _normalize_url(url: str) -> str:

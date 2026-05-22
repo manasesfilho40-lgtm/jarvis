@@ -1,0 +1,212 @@
+import json
+import sys
+import traceback
+from pathlib import Path
+from datetime import datetime
+
+def _get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+BASE_DIR        = _get_base_dir()
+API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+
+def _get_api_key() -> str:
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)["gemini_api_key"]
+    except Exception:
+        return ""
+
+FALLBACK_NEWS = [
+    {
+        "category": "war",
+        "title": "Ucrânia: novos ataques reportados na região de Kharkiv",
+        "body": "Forças russas intensificam bombardeios no leste. OTAN monitora fronteira.",
+        "region": "🇺🇦 Europa Oriental",
+        "time": "há 15 min",
+        "lat": 50.4, "lon": 30.5
+    },
+    {
+        "category": "alert",
+        "title": "Gaza: negociações de cessar-fogo entram em nova rodada",
+        "body": "Mediadores internacionais buscam acordo. Tensão permanece alta na região.",
+        "region": "🇵🇸 Oriente Médio",
+        "time": "há 30 min",
+        "lat": 31.7, "lon": 35.2
+    },
+    {
+        "category": "market",
+        "title": "FED sinaliza manutenção de juros altos por mais tempo",
+        "body": "Bancos centrais ajustam projeções. Dólar volatiliza frente a emergentes.",
+        "region": "🇺🇸 EUA",
+        "time": "há 1h",
+        "lat": 40.7, "lon": -74.0
+    },
+    {
+        "category": "geo",
+        "title": "Tensão no Estreito de Taiwan com exercícios navais",
+        "body": "Movimentação militar ativa protocolos de defesa no Japão e Coreia do Sul.",
+        "region": "🇨🇳 Indo-Pacífico",
+        "time": "há 2h",
+        "lat": 23.5, "lon": 121.0
+    },
+    {
+        "category": "tech",
+        "title": "Nova IA generativa chinesa desafia liderança do Vale do Silício",
+        "body": "Empresa de Shenzhen lança modelo com desempenho superior em benchmarks.",
+        "region": "🇨🇳 China",
+        "time": "há 3h",
+        "lat": 22.5, "lon": 114.1
+    },
+    {
+        "category": "energy",
+        "title": "OPEP+ anuncia corte adicional na produção de petróleo",
+        "body": "Decisão visa estabilizar preços. Impacto esperado nos mercados globais.",
+        "region": "🇸🇦 Arábia Saudita",
+        "time": "há 4h",
+        "lat": 24.5, "lon": 54.6
+    },
+    {
+        "category": "health",
+        "title": "OMS alerta para surto de dengue na América Latina",
+        "body": "Casos aumentam 40% na região. Brasil lidera campanhas de vacinação.",
+        "region": "🇧🇷 Brasil",
+        "time": "há 5h",
+        "lat": -23.5, "lon": -46.6
+    },
+    {
+        "category": "climate",
+        "title": "Cúpula do Clima: novos limites de emissões em Bruxelas",
+        "body": "Líderes europeus propõem metas mais rígidas para o setor industrial.",
+        "region": "🇪🇺 União Europeia",
+        "time": "há 6h",
+        "lat": 50.8, "lon": 4.3
+    },
+    {
+        "category": "market",
+        "title": "Bitcoin supera resistência e testa nova máxima do ano",
+        "body": "Institucionais aumentam exposição. ETFs registram entradas recordes.",
+        "region": "🌐 Global",
+        "time": "há 2h",
+        "lat": 37.8, "lon": -122.4
+    },
+    {
+        "category": "alert",
+        "title": "Terremoto de magnitude 6.2 atinge costa do Japão",
+        "body": "Alerta de tsunami emitido e depois cancelado. Sem danos graves reportados.",
+        "region": "🇯🇵 Japão",
+        "time": "há 1h",
+        "lat": 35.7, "lon": 139.7
+    }
+]
+
+FALLBACK_MARKETS = [
+    {"name": "S&P 500", "val": "5.847", "delta": "+0.82", "up": True},
+    {"name": "BTC/USD", "val": "67.4k", "delta": "+2.1", "up": True},
+    {"name": "Petróleo", "val": "$88.3", "delta": "-1.3", "up": False},
+    {"name": "IBOV", "val": "128.4k", "delta": "-0.4", "up": False},
+    {"name": "EUR/USD", "val": "1.087", "delta": "+0.15", "up": True},
+    {"name": "Ouro", "val": "$2.341", "delta": "+0.6", "up": True},
+]
+
+def fetch_geopolitics_news() -> str:
+    """
+    Queries Gemini using Google Search to fetch the latest global news / geopolitics,
+    returns a JSON with news items, market tickers, and threat level.
+    If it fails, returns the fallback mock data.
+    """
+    api_key = _get_api_key()
+    if not api_key:
+        print("[Geopolitics Monitor] No API key found. Using fallback.")
+        return json.dumps({
+            "news": FALLBACK_NEWS,
+            "markets": FALLBACK_MARKETS,
+            "threat_level": "moderate",
+            "updated_at": datetime.now().strftime("%H:%M")
+        }, ensure_ascii=False)
+
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=api_key)
+
+        prompt = (
+            "Using Google Search, find the top 10 high-impact, REAL geopolitical events, "
+            "military conflicts, major financial market shifts, or crises happening globally RIGHT NOW (last 24 hours). "
+            "Return a clean JSON object with these keys:\n\n"
+            "'news': A JSON array of exactly 10 objects. MUST include diversity across regions and categories:\n"
+            "  - At least 1 from Americas (North or South)\n"
+            "  - At least 1 from Europe\n"
+            "  - At least 1 from Middle East or Africa\n"
+            "  - At least 1 from Asia-Pacific\n"
+            "  - At least 1 from Brazil or Latin America\n"
+            "  - Mix of categories: 'war', 'market', 'geo', 'alert', 'tech', 'energy', 'health', 'climate'\n"
+            "  Each object with:\n"
+            "  - 'category': one of 'war', 'market', 'geo', 'alert', 'tech', 'energy', 'health', 'climate'\n"
+            "  - 'title': Headline in Brazilian Portuguese (max 80 chars)\n"
+            "  - 'body': Brief explanation in Brazilian Portuguese (1-2 sentences, max 160 chars)\n"
+            "  - 'region': Region with flag emoji (e.g. '🇺🇦 Europa Oriental', '🇧🇷 Brasil', '🇺🇸 EUA', '🇯🇵 Japão', '🇿🇦 África do Sul')\n"
+            "  - 'time': Relative time ('há 10 min', 'há 1h', 'há 3h')\n"
+            "  - 'lat': Latitude of the event location (approximate)\n"
+            "  - 'lon': Longitude of the event location (approximate)\n\n"
+            "'markets': A JSON array of 6 market tickers. Each with:\n"
+            "  - 'name': Ticker name (e.g. 'S&P 500', 'BTC/USD', 'IBOV', 'EUR/USD', 'Ouro', 'Petróleo')\n"
+            "  - 'val': Current value as string (e.g. '5.847', '67.4k', '$88.3')\n"
+            "  - 'delta': Percentage change as string without sign (e.g. '0.82', '1.3')\n"
+            "  - 'up': boolean (true if positive, false if negative)\n\n"
+            "'threat_level': One of 'low', 'moderate', 'elevated', 'high', 'critical'\n\n"
+            "Respond ONLY with the JSON object. No markdown, no code blocks. "
+            "Use REAL current data from Google Search. Prioritize news from the last 12 hours."
+        )
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config={
+                "tools": [{"google_search": {}}],
+                "response_mime_type": "application/json"
+            },
+        )
+
+        text = ""
+        for part in response.candidates[0].content.parts:
+            if hasattr(part, "text") and part.text:
+                text += part.text
+
+        text = text.strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines[-1].startswith("```"):
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+
+        data = json.loads(text)
+
+        if "news" not in data:
+            data["news"] = FALLBACK_NEWS
+        if "markets" not in data:
+            data["markets"] = FALLBACK_MARKETS
+        if "threat_level" not in data:
+            data["threat_level"] = "moderate"
+
+        data["updated_at"] = datetime.now().strftime("%H:%M")
+
+        print(f"[Geopolitics Monitor] Fetched {len(data['news'])} live updates. Threat: {data['threat_level']}")
+        return json.dumps(data, ensure_ascii=False)
+
+    except Exception as e:
+        print(f"[Geopolitics Monitor] Fetch failed: {e}. Using fallback.")
+        traceback.print_exc()
+        return json.dumps({
+            "news": FALLBACK_NEWS,
+            "markets": FALLBACK_MARKETS,
+            "threat_level": "moderate",
+            "updated_at": datetime.now().strftime("%H:%M")
+        }, ensure_ascii=False)
+
+if __name__ == "__main__":
+    print(fetch_geopolitics_news())

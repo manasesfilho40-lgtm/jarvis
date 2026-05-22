@@ -1,0 +1,29 @@
+{
+  "history": [
+    {
+      "status": "running",
+      "details": "Actor: compass/crawler-google-places, Query: {'searchStringsArray': ['lojas streetwear São Paulo'], 'maxResults': 20}",
+      "updated_at": "2026-05-20 16:52:00"
+    },
+    {
+      "status": "error",
+      "details": "Failed after 2 retries: By launching this job you will exceed your remaining usage of $0.271785.  Please consider upgrading to a paid plan at https://console.apify.com/billing/subscription",
+      "updated_at": "2026-05-20 16:52:06"
+    },
+    {
+      "status": "running",
+      "details": "Actor: compass/crawler-google-places, Query: {'searchStringsArray': ['lojas streetwear São Paulo'], 'maxResults': 20}",
+      "updated_at": "2026-05-20 16:57:42"
+    },
+    {
+      "status": "error",
+      "details": "Failed after 2 retries: By launching this job you will exceed your remaining usage of $0.271785.  Please consider upgrading to a paid plan at https://console.apify.com/billing/subscription",
+      "updated_at": "2026-05-20 16:57:48"
+    }
+  ],
+  "current": {
+    "status": "error",
+    "details": "Failed after 2 retries: By launching this job you will exceed your remaining usage of $0.271785.  Please consider upgrading to a paid plan at https://console.apify.com/billing/subscription",
+    "updated_at": "2026-05-20 16:57:48"
+  }
+}

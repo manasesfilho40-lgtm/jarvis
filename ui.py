@@ -6,7 +6,7 @@ Integrates Three.js 3D Spiky Sphere with PyQt6 WebEngineView
 import sys
 import os
 import json
-from PyQt6.QtCore import QUrl, pyqtSignal, QObject
+from PyQt6.QtCore import QUrl, pyqtSignal, QObject, QFileSystemWatcher
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
@@ -44,6 +44,7 @@ class JarvisUI(QObject):
     state_signal = pyqtSignal(str)
     volume_signal = pyqtSignal(float)
     leads_signal = pyqtSignal(str)
+    geopolitics_signal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -83,11 +84,29 @@ class JarvisUI(QObject):
         # Connect page load finished signal
         self.web_view.loadFinished.connect(self._on_load_finished)
         
+        # Setup filesystem watcher for leads database
+        self.watcher = QFileSystemWatcher(self)
+        self.watcher.fileChanged.connect(self._on_leads_file_changed)
+        self.watcher.directoryChanged.connect(self._on_leads_dir_changed)
+        
+        self.leads_db_paths = [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "config", "leads_db.json")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "memory", "leads_db.json")),
+        ]
+        
+        for path in self.leads_db_paths:
+            parent_dir = os.path.dirname(path)
+            if os.path.exists(parent_dir):
+                self.watcher.addPath(parent_dir)
+            if os.path.exists(path):
+                self.watcher.addPath(path)
+
         # Connect safe slots
         self.log_signal.connect(self._safe_write_log)
         self.state_signal.connect(self._safe_set_state)
         self.volume_signal.connect(self._safe_set_volume)
         self.leads_signal.connect(self._safe_update_leads)
+        self.geopolitics_signal.connect(self._safe_update_geopolitics)
         
         # Load local HTML
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jarvis_ui.html"))
@@ -114,6 +133,12 @@ class JarvisUI(QObject):
         vol_js = f"updateVolume({self._current_volume});"
         self.web_view.page().runJavaScript(vol_js)
 
+        # Load initial leads from any existing database file
+        for db_path in self.leads_db_paths:
+            if os.path.exists(db_path):
+                self._reload_leads_file(db_path)
+                break
+
     def _on_console_message(self, level, message, line, source_id):
         # Listen for console.log statements from JS beginning with "CMD:"
         if message.startswith("CMD:"):
@@ -127,6 +152,8 @@ class JarvisUI(QObject):
                 log_msg = "SYS: Microfone silenciado." if self.muted else "SYS: Microfone ativado."
                 self.write_log(log_msg)
             else:
+                if cmd == "start whatsapp automation agent":
+                    cmd = "open whatsapp automation agent"
                 # Dispatch command back to python brain listener (Gemini Live/Llama)
                 if self.on_text_command:
                     self.on_text_command(cmd)
@@ -176,6 +203,9 @@ class JarvisUI(QObject):
     def update_leads(self, leads_json_str):
         self.leads_signal.emit(leads_json_str)
 
+    def update_geopolitics(self, geopolitics_json_str):
+        self.geopolitics_signal.emit(geopolitics_json_str)
+
     def _safe_write_log(self, is_user, clean_msg):
         if not self._page_loaded:
             self._log_buffer.append((is_user, clean_msg))
@@ -197,8 +227,35 @@ class JarvisUI(QObject):
             
     def _safe_update_leads(self, leads_json_str):
         if self._page_loaded:
-            js_code = f"updateLeadsData({leads_json_str});"
+            js_code = f"updateLeadsData({json.dumps(leads_json_str)});"
             self.web_view.page().runJavaScript(js_code)
+
+    def _safe_update_geopolitics(self, geopolitics_json_str):
+        if self._page_loaded:
+            js_code = f"updateGeopoliticsNews({json.dumps(geopolitics_json_str)});"
+            self.web_view.page().runJavaScript(js_code)
+
+    def _reload_leads_file(self, path):
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                if content:
+                    # Validate JSON structure
+                    json.loads(content)
+                    self.update_leads(content)
+        except Exception as e:
+            print(f"[JARVIS UI LEADS WATCHER ERROR] {e}")
+
+    def _on_leads_file_changed(self, path):
+        if os.path.basename(path) == "leads_db.json":
+            self._reload_leads_file(path)
+
+    def _on_leads_dir_changed(self, path):
+        for db_path in self.leads_db_paths:
+            if os.path.exists(db_path) and db_path not in self.watcher.files():
+                self.watcher.addPath(db_path)
+                self._reload_leads_file(db_path)
 
     def show(self):
         self.root_win.show()

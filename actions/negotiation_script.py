@@ -47,14 +47,20 @@ def generate_negotiation_script(product, price, max_discount, tone):
     """
     
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json"
         )
     )
     
-    script_data = json.loads(response.text)
+    raw = response.text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+    script_data = json.loads(raw)
     script_data["metadata"] = {
         "product": product,
         "price": price,

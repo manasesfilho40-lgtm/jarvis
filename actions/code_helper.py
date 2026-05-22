@@ -226,7 +226,7 @@ def _run_file(path: Path, args: list, timeout: int) -> str:
 
 def _build(description, language, output_path, args, timeout, speak=None, player=None) -> str:
     if not description:
-        return "Please describe what you want me to build, sir."
+        return "Por favor, descreva o que deseja que eu desenvolva, senhor."
 
     if player:
         player.write_log("[Code] Build started...")
@@ -237,7 +237,7 @@ def _build(description, language, output_path, args, timeout, speak=None, player
         code, path = _write(description, lang, output_path, player)
         print(f"[Code] ✅ Written: {path}")
     except Exception as e:
-        msg = f"Could not write initial code: {e}"
+        msg = f"Não foi possível gerar o código inicial: {e}"
         if speak: speak(msg)
         return msg
 
@@ -251,9 +251,9 @@ def _build(description, language, output_path, args, timeout, speak=None, player
 
         if not _has_error(last_output):
             msg = (
-                f"Build complete, sir. "
-                f"The code is working after {attempt} attempt{'s' if attempt > 1 else ''}. "
-                f"Saved to {path}."
+                f"Construção concluída, senhor. "
+                f"O código está funcionando perfeitamente após {attempt} tentativa{'s' if attempt > 1 else ''}. "
+                f"Salvo em {path}."
             )
             if speak: speak(msg)
             return f"{msg}\n\nOutput:\n{last_output}"
@@ -266,20 +266,20 @@ def _build(description, language, output_path, args, timeout, speak=None, player
             code = _fix_code(code, last_output, description)
             _save_file(path, code)
         except Exception as e:
-            msg = f"Could not fix code on attempt {attempt}: {e}"
+            msg = f"Não foi possível corrigir o código na tentativa {attempt}: {e}"
             if speak: speak(msg)
             return msg
 
     msg = (
-        f"I was unable to build a working version after {MAX_BUILD_ATTEMPTS} attempts, sir. "
-        f"The last error was: {last_output[:200]}"
+        f"Não fui capaz de construir uma versão funcional após {MAX_BUILD_ATTEMPTS} tentativas, senhor. "
+        f"O último erro reportado foi: {last_output[:200]}"
     )
     if speak: speak(msg)
     return f"{msg}\n\nLast code saved to: {path}"
 
 def _write_action(description, language, output_path, player) -> str:
     if not description:
-        return "Please describe what you want me to write, sir."
+        return "Por favor, descreva o que deseja que eu escreva, senhor."
     if player:
         player.write_log("[Code] Writing code...")
     try:
@@ -292,9 +292,9 @@ def _write_action(description, language, output_path, player) -> str:
 
 def _edit_action(file_path, instruction, player) -> str:
     if not file_path:
-        return "Please provide a file path to edit, sir."
+        return "Por favor, forneça o caminho do arquivo para editar, senhor."
     if not instruction:
-        return "Please describe what change to make, sir."
+        return "Por favor, descreva qual alteração deseja fazer, senhor."
 
     content, err = _read_file(file_path)
     if err:
@@ -332,7 +332,7 @@ def _explain_action(file_path, code, player) -> str:
         if err:
             return err
     if not code:
-        return "Please provide code or a file path to explain, sir."
+        return "Por favor, forneça o código ou o caminho do arquivo a ser explicado, senhor."
 
     if player:
         player.write_log("[Code] Analyzing code...")
@@ -356,7 +356,7 @@ Explanation:"""
 
 def _run_action(file_path, args, timeout, player) -> str:
     if not file_path:
-        return "Please provide a file path to run, sir."
+        return "Por favor, forneça o caminho do arquivo para executar, senhor."
     p = Path(file_path)
     if not p.exists():
         return f"File not found: {file_path}"
@@ -372,7 +372,7 @@ def _optimize_action(file_path, code, language, output_path, player) -> str:
         if err:
             return err
     if not code:
-        return "Please provide code or a file path to optimize, sir."
+        return "Por favor, forneça o código ou o caminho do arquivo para otimizar, senhor."
 
     if player:
         player.write_log("[Code] Optimizing code...")
@@ -431,7 +431,7 @@ def _screen_debug_action(description, file_path, player, speak=None) -> str:
 
     screenshot_path = _take_screenshot()
     if not screenshot_path:
-        return "Could not take screenshot, sir. Please make sure PyAutoGUI is installed."
+        return "Não foi possível capturar a tela, senhor. Por favor, certifique-se de que a biblioteca PyAutoGUI está instalada."
 
 
     file_content = ""

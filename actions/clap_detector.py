@@ -84,8 +84,9 @@ class ClapDetector:
         if self._running:
             return
         self._running = True
-        self._thread = threading.Thread(target=self._listen_loop, daemon=True)
-        self._thread.start()
+        # Do not start _listen_loop thread to avoid opening a second mic stream
+        # self._thread = threading.Thread(target=self._listen_loop, daemon=True)
+        # self._thread.start()
 
     def stop(self):
         """Stop listening."""
