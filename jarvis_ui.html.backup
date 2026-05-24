@@ -1,0 +1,2590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — MARK XXXIX</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #0a0a0f;
+  --bg-secondary: #111118;
+  --card: rgba(255,255,255,0.04);
+  --card-hover: rgba(255,255,255,0.07);
+  --card-border: rgba(255,255,255,0.06);
+  --card-border-hover: rgba(255,255,255,0.12);
+  --text-primary: #f5f5f7;
+  --text-secondary: rgba(245,245,247,0.6);
+  --text-tertiary: rgba(245,245,247,0.35);
+  --green: #30d158;
+  --green-soft: rgba(48,209,88,0.15);
+  --blue: #0a84ff;
+  --blue-soft: rgba(10,132,255,0.15);
+  --orange: #ff9f0a;
+  --orange-soft: rgba(255,159,10,0.15);
+  --red: #ff453a;
+  --red-soft: rgba(255,69,58,0.15);
+  --purple: #bf5af2;
+  --purple-soft: rgba(191,90,242,0.15);
+  --teal: #64d2ff;
+  --teal-soft: rgba(100,210,255,0.15);
+  --pink: #ff375f;
+  --pink-soft: rgba(255,55,95,0.15);
+  --r-sm: 14px;
+  --r-md: 18px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --r-2xl: 40px;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+  --glass: blur(20px);
+  --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 56px;
+  background: rgba(17,17,24,0.8);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 20px;
+  flex-shrink: 0;
+  margin: 0 12px;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.tb-logo { font-size: 17px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; }
+.tb-sub { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-top: 1px; }
+.tb-pills { display: flex; gap: 10px; margin-left: 20px; }
+.tb-pill {
+  padding: 6px 14px; border-radius: 100px;
+  font-size: 12px; font-weight: 500;
+  background: var(--card); color: var(--text-secondary);
+  display: flex; align-items: center; gap: 7px;
+  border: 1px solid var(--card-border);
+  transition: var(--transition);
+}
+.tb-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+.tb-pill.active { background: var(--green-soft); color: var(--green); border-color: rgba(48,209,88,0.2); }
+.tb-pill.active .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.tb-pill.warn { background: var(--orange-soft); color: var(--orange); border-color: rgba(255,159,10,0.2); }
+.tb-pill.warn .dot { background: var(--orange); }
+.tb-select-wrap { position:relative; display:inline-flex; align-items:center; }
+.tb-select-wrap select {
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  background:var(--card); color:var(--text-primary);
+  border:1px solid var(--card-border); border-radius:100px;
+  padding:6px 32px 6px 14px; font-size:12px; font-weight:500;
+  font-family:'Inter',sans-serif; cursor:pointer;
+  outline:none; transition:var(--transition);
+  min-width:110px;
+}
+.tb-select-wrap select:hover { border-color:var(--card-border-hover); background:var(--card-hover); }
+.tb-select-wrap select:focus { border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-soft); }
+.tb-select-arrow { position:absolute; right:12px; width:10px; height:6px; color:var(--text-secondary); pointer-events:none; }
+.tb-time {
+  margin-left: auto;
+  font-size: 14px; font-weight: 500; color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+
+/* ── LAYOUT ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+.s-card {
+  background: var(--card);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.s-card:hover {
+  background: var(--card-hover);
+  border-color: var(--card-border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.s-label {
+  font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  letter-spacing: 0.8px; text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.s-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+  transition: var(--transition);
+}
+.s-row + .s-row { border-top: 1px solid var(--card-border); }
+.s-row-left { display: flex; align-items: center; gap: 12px; }
+.s-icon {
+  width: 34px; height: 34px; border-radius: var(--r-sm);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  transition: var(--transition);
+}
+.s-card:hover .s-icon {
+  background: var(--card-hover);
+  border-color: var(--card-border-hover);
+}
+.s-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.s-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+/* Toggle */
+.toggle {
+  width: 44px; height: 26px; border-radius: 100px;
+  background: rgba(255,255,255,0.12); position: relative; cursor: pointer;
+  transition: background 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  flex-shrink: 0; border: none; outline: none;
+}
+.toggle:hover { background: rgba(255,255,255,0.18); }
+.toggle.on { background: var(--green); }
+.toggle.blue.on { background: var(--blue); }
+.toggle::after {
+  content: ''; position: absolute;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; top: 3px; left: 3px;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.toggle.on::after { transform: translateX(18px); }
+
+/* Metric mini */
+.s-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.s-num {
+  background: var(--card); border-radius: var(--r-md);
+  padding: 14px 16px;
+  border: 1px solid var(--card-border);
+  transition: var(--transition);
+}
+.s-num:hover {
+  background: var(--card-hover);
+  border-color: var(--card-border-hover);
+  transform: translateY(-1px);
+}
+.s-num-val { font-size: 24px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px; }
+.s-num-label { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; font-weight: 400; }
+
+/* ── CENTER ── */
+.center { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
+
+/* Orb card */
+.orb-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-2xl);
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 280px;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+  position: relative;
+}
+.orb-left {
+  flex: 1;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+.orb-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); }
+.orb-num { font-size: 44px; font-weight: 700; color: var(--text-primary); letter-spacing: -2px; line-height: 1; margin-top: 4px; }
+.orb-sub { font-size: 12px; color: var(--text-tertiary); font-weight: 400; margin-top: 4px; }
+.orb-bars { display: flex; flex-direction: column; gap: 6px; }
+.obar-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; font-weight: 500; }
+.obar-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 100px; overflow: hidden; }
+.obar-fill { height: 100%; border-radius: 100px; transition: width 1s ease; }
+
+.orb-canvas-wrap {
+  width: 220px;
+  height: 100%;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+#webgl-canvas { width: 100%; height: 100%; display: block; }
+
+.orb-right {
+  flex: 1;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.orb-state {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 100px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  align-self: flex-start;
+  transition: var(--transition);
+}
+.orb-state:hover {
+  background: var(--card-hover);
+  border-color: var(--card-border-hover);
+}
+.orb-state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); flex-shrink: 0; }
+.orb-state-text { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.orb-cmd {
+  font-size: 13px; font-style: italic;
+  color: var(--text-secondary); line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.orb-cmd-time { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+
+.orb-bottom-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.orb-mic-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--card-border); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+  transition: var(--transition);
+}
+.orb-mic-btn:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.orb-mic-btn.speaking { background: var(--green-soft); border-color: rgba(48,209,88,0.2); }
+.orb-speak-bar {
+  flex: 1; display: flex; align-items: center;
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 100px; padding: 0 14px; height: 38px;
+  transition: var(--transition);
+}
+.orb-speak-bar:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+#speak-btn-text {
+  font-size: 12px; color: var(--text-secondary); font-weight: 400; white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tabs area */
+.tabs-wrap {
+  background: var(--card);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-xl);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+.tabs-wrap:hover {
+  border-color: var(--card-border-hover);
+  box-shadow: var(--shadow-md);
+}
+.tabs { display: flex; padding: 14px 18px 0; gap: 6px; flex-shrink: 0; }
+.tab {
+  padding: 8px 18px; border-radius: var(--r-sm) var(--r-sm) 0 0;
+  font-size: 12px; font-weight: 500; color: var(--text-tertiary);
+  cursor: pointer; background: transparent; border: none;
+  transition: var(--transition);
+}
+.tab:hover { color: var(--text-secondary); }
+.tab.active { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.tab-badge {
+  background: var(--green-soft); color: var(--green);
+  font-size: 10px; padding: 2px 7px; border-radius: 100px;
+  margin-left: 6px; font-weight: 600;
+}
+.tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.tab-content.active { display: flex; }
+
+/* Logs */
+.logs-wrap { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+.log-entry {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 16px; border-radius: var(--r-md);
+  animation: fadeUp 0.3s ease;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+.log-entry:hover {
+  background: rgba(255,255,255,0.02);
+  border-color: var(--card-border);
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
+.log-entry.jarvis { background: var(--card); }
+.log-entry.user { background: var(--green-soft); border-color: rgba(48,209,88,0.1); }
+.log-entry.sys { background: var(--orange-soft); border-color: rgba(255,159,10,0.1); }
+.log-entry.err { background: var(--red-soft); border-color: rgba(255,69,58,0.1); }
+.log-role {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  white-space: nowrap; margin-top: 2px;
+  flex-shrink: 0; width: 48px;
+}
+.log-entry.jarvis .log-role { color: var(--text-secondary); }
+.log-entry.user .log-role { color: var(--green); }
+.log-entry.sys .log-role { color: var(--orange); }
+.log-entry.err .log-role { color: var(--red); }
+.log-text { font-size: 13px; color: var(--text-primary); line-height: 1.6; }
+.log-time { font-size: 10px; color: var(--text-tertiary); margin-left: auto; white-space: nowrap; flex-shrink: 0; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+/* Leads */
+.leads-wrap { flex: 1; overflow-y: auto; padding: 16px 20px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+.leads-empty { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 13px; }
+.lead-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--card-border);
+  transition: var(--transition);
+}
+.lead-item:hover { padding-left: 4px; }
+.lead-avatar {
+  width: 38px; height: 38px; border-radius: var(--r-sm);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 600; color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+.lead-item:hover .lead-avatar {
+  background: var(--card-hover);
+  border-color: var(--card-border-hover);
+}
+.lead-info { flex: 1; min-width: 0; }
+.lead-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-phone { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+.lead-tag {
+  padding: 4px 10px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  flex-shrink: 0;
+}
+.lead-tag.new { background: var(--green-soft); color: var(--green); }
+.lead-tag.contacted { background: var(--blue-soft); color: var(--blue); }
+.lead-tag.replied { background: var(--orange-soft); color: var(--orange); }
+
+/* Input */
+.input-area {
+  padding: 14px 18px;
+  display: flex; gap: 10px;
+  border-top: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.cmd-input {
+  flex: 1; padding: 12px 18px;
+  border-radius: 100px;
+  border: 1.5px solid var(--card-border);
+  background: var(--card);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px; color: var(--text-primary);
+  outline: none; transition: var(--transition);
+}
+.cmd-input:focus { border-color: var(--blue); background: rgba(10,132,255,0.05); }
+.cmd-input::placeholder { color: var(--text-tertiary); }
+.cmd-send {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--blue); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px;
+  flex-shrink: 0; transition: var(--transition);
+  box-shadow: 0 2px 8px rgba(10,132,255,0.3);
+}
+.cmd-send:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(10,132,255,0.4); }
+.cmd-send:active { transform: scale(0.95); }
+.cmd-mic {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--card-border); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  transition: var(--transition);
+}
+.cmd-mic:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.cmd-mic.speaking { background: var(--green-soft); border-color: rgba(48,209,88,0.2); }
+
+/* ── RIGHT PANEL ── */
+.right { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+.right::-webkit-scrollbar { width: 4px; }
+.right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+.r-card {
+  background: var(--card);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.r-card:hover {
+  background: var(--card-hover);
+  border-color: var(--card-border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.r-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 16px; }
+.r-label.light { color: var(--text-secondary); }
+
+/* Activity bars */
+.act-bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; margin-bottom: 8px; }
+.act-bar { flex: 1; border-radius: 6px 6px 0 0; background: rgba(255,255,255,0.06); min-height: 4px; cursor: pointer; transition: var(--transition); }
+.act-bar:hover { background: var(--blue); transform: scaleY(1.05); transform-origin: bottom; }
+.act-bar.peak { background: var(--green); }
+.act-bar.hot { background: var(--orange); }
+.act-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
+
+/* Health rows */
+.h-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.h-row + .h-row { border-top: 1px solid var(--card-border); }
+.h-left { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 400; color: var(--text-primary); }
+.h-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.h-dot.pulse { animation: pulse-green 2s infinite; }
+@keyframes pulse-green { 0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,0.4);} 50%{box-shadow:0 0 0 6px rgba(48,209,88,0);} }
+.h-val { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+
+/* Predict */
+.p-num { font-size: 36px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -1px; }
+.p-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
+.p-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 100px; overflow: hidden; margin: 12px 0 6px; }
+.p-fill { height: 100%; border-radius: 100px; background: var(--green); transition: width 1.5s ease; }
+.p-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); }
+
+/* Quick grid */
+.q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.q-btn {
+  background: var(--card); border-radius: var(--r-md);
+  padding: 16px; cursor: pointer; border: 1px solid var(--card-border);
+  transition: var(--transition); text-align: left;
+}
+.q-btn:hover { background: var(--card-hover); border-color: var(--card-border-hover); transform: translateY(-1px); }
+.q-btn:active { transform: scale(0.98); }
+.q-icon { font-size: 22px; margin-bottom: 8px; }
+.q-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Dark card text */
+.dark-stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.dark-stat-row + .dark-stat-row { border-top: 1px solid var(--card-border); }
+.dark-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dark-stat-text { font-size: 13px; color: var(--text-secondary); }
+.dark-stat-val { margin-left: auto; font-size: 12px; color: var(--text-tertiary); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ── BOTTOM ── */
+.bottombar {
+  height: 32px;
+  background: rgba(17,17,24,0.8);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border-top: 1px solid var(--card-border);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  display: flex; align-items: center;
+  padding: 0 24px; gap: 24px;
+  flex-shrink: 0;
+  margin: 0 12px;
+}
+.bb-item { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 7px; font-weight: 400; }
+.bb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.bb-dot.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+/* ── GLOBE ── */
+.globe-mini-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-xl);
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  height: 160px;
+  transition: var(--transition);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  box-sizing: border-box;
+}
+.globe-mini-card:hover { transform: scale(1.02); border-color: var(--card-border-hover); box-shadow: var(--shadow-lg); }
+.globe-mini-card:active { cursor: grabbing; transform: scale(0.98); }
+.globe-mini-canvas { width: 100%; height: 100%; display: block; max-width: 100%; }
+.globe-mini-label {
+  position: absolute; bottom: 12px; left: 16px;
+  font-size: 11px; font-weight: 600; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-tertiary);
+  pointer-events: none;
+}
+.globe-mini-pulse {
+  position: absolute; top: 12px; right: 14px;
+  display: flex; align-items: center; gap: 6px;
+  pointer-events: none;
+}
+.globe-mini-pulse-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red);
+  animation: pulse-red 1.5s infinite;
+}
+@keyframes pulse-red { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,69,58,0.4);} 50%{opacity:0.6;box-shadow:0 0 0 6px rgba(255,69,58,0);} }
+.globe-mini-pulse-txt { font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
+
+/* Threat level indicator */
+.threat-badge {
+  position: absolute; top: 12px; left: 14px;
+  padding: 4px 10px; border-radius: 100px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase; pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.threat-badge.low { background: var(--green-soft); color: var(--green); border: 1px solid rgba(48,209,88,0.2); }
+.threat-badge.moderate { background: var(--orange-soft); color: var(--orange); border: 1px solid rgba(255,159,10,0.2); }
+.threat-badge.elevated { background: rgba(255,159,10,0.25); color: #ffb340; border: 1px solid rgba(255,159,10,0.3); }
+.threat-badge.high { background: var(--red-soft); color: var(--red); border: 1px solid rgba(255,69,58,0.2); }
+.threat-badge.critical { background: rgba(255,69,58,0.3); color: #ff6b6b; border: 1px solid rgba(255,69,58,0.4); animation: pulse-red 1s infinite; }
+
+/* ── GLOBE OVERLAY ── */
+#globe-overlay {
+  position: fixed; inset: 0;
+  background: rgba(5,5,10,0);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: background 0.6s ease, opacity 0.6s ease;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+}
+#globe-overlay.open {
+  background: rgba(5,5,10,0.95);
+  pointer-events: all;
+  opacity: 1;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.globe-overlay-inner {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+  transform: scale(0.3);
+  transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  width: 90vw; max-width: 1100px;
+  height: 80vh; max-height: 700px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+#globe-overlay.open .globe-overlay-inner { transform: scale(1); }
+
+.globe-big-wrap {
+  width: min(420px, 45%);
+  aspect-ratio: 1;
+  max-height: 100%;
+  flex-shrink: 0; position: relative;
+  cursor: grab;
+  border-radius: var(--r-2xl);
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-lg);
+}
+.globe-big-wrap:active { cursor: grabbing; }
+#globe-big-canvas { width: 100%; height: 100%; display: block; }
+
+.globe-intel-panel {
+  flex: 1;
+  min-width: 280px;
+  max-width: 500px;
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+  padding-right: 6px;
+  box-sizing: border-box;
+}
+.globe-intel-panel::-webkit-scrollbar { width: 4px; }
+.globe-intel-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+.intel-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-lg);
+  padding: 12px;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  transition: var(--transition);
+}
+.intel-card:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.intel-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.intel-card-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 100px;
+  font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  flex-shrink: 0;
+}
+.intel-card-tag.war { background: var(--red-soft); color: var(--red); }
+.intel-card-tag.market { background: var(--blue-soft); color: var(--blue); }
+.intel-card-tag.geo { background: var(--orange-soft); color: var(--orange); }
+.intel-card-tag.alert { background: var(--green-soft); color: var(--green); }
+.intel-card-tag.tech { background: var(--purple-soft); color: var(--purple); }
+.intel-card-tag.energy { background: rgba(255,159,10,0.15); color: #ffb340; }
+.intel-card-tag.health { background: var(--pink-soft); color: var(--pink); }
+.intel-card-tag.climate { background: var(--teal-soft); color: var(--teal); }
+.intel-card-headline { font-size: 12px; font-weight: 500; color: var(--text-primary); line-height: 1.3; flex: 1; }
+.intel-card-body { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px; }
+.intel-card-footer { display: flex; justify-content: space-between; margin-top: 8px; }
+.intel-card-region { font-size: 10px; color: var(--text-tertiary); }
+.intel-card-time { font-size: 10px; color: var(--text-tertiary); }
+
+.intel-divider {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-tertiary);
+  padding-top: 6px; border-top: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+
+.intel-tickers {
+  display: none;
+}
+.intel-ticker {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-md);
+  padding: 8px;
+  text-align: center;
+}
+.intel-ticker-name { font-size: 9px; color: var(--text-tertiary); font-weight: 500; }
+.intel-ticker-val { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 2px 0; }
+.intel-ticker-delta { font-size: 10px; font-weight: 500; }
+.intel-ticker-delta.up { color: var(--green); }
+.intel-ticker-delta.down { color: var(--red); }
+
+.intel-filter-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0;
+}
+.intel-filter-tab {
+  padding: 4px 8px; border-radius: 100px;
+  font-size: 9px; font-weight: 500; color: var(--text-tertiary);
+  background: var(--card); border: 1px solid var(--card-border);
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; gap: 4px;
+}
+.intel-filter-tab:hover { color: var(--text-secondary); }
+.intel-filter-tab.active { color: var(--green); background: var(--green-soft); border-color: rgba(48,209,88,0.2); }
+.tab-count { font-size: 8px; opacity: 0.7; }
+
+.intel-search {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: var(--r-md); padding: 6px 10px; flex-shrink: 0;
+}
+.intel-search-icon { font-size: 12px; opacity: 0.5; }
+.intel-search input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text-primary); font-size: 11px;
+}
+.intel-search input::placeholder { color: var(--text-tertiary); }
+
+.intel-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex-shrink: 0;
+}
+.intel-stat { text-align: center; }
+.intel-stat-val { font-size: 14px; font-weight: 600; }
+.intel-stat-label { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.globe-close {
+  position: absolute; top: 8px; right: 8px; z-index: 10;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-secondary); font-size: 14px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: var(--transition);
+}
+.globe-close:hover { background: rgba(255,255,255,0.2); color: var(--text-primary); }
+.globe-hint {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; color: var(--text-tertiary); white-space: nowrap;
+  background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 100px;
+  pointer-events: none; z-index: 10;
+}
+#globe-detail-popup {
+  position: absolute; z-index: 20; pointer-events: none;
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: var(--r-lg); padding: 12px; max-width: 240px;
+  backdrop-filter: blur(12px); box-shadow: var(--shadow-lg);
+  opacity: 0; transition: opacity 0.2s ease;
+}
+#globe-detail-popup.visible { opacity: 1; }
+.intel-header { font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.5px; font-weight: 500; flex-shrink: 0; }
+.intel-title { font-size: 16px; font-weight: 700; color: var(--text-primary); line-height: 1.2; margin: 2px 0; flex-shrink: 0; }
+.intel-sub { font-size: 10px; color: var(--text-tertiary); margin-bottom: 4px; flex-shrink: 0; }
+
+@media (max-width: 1200px) {
+  .main { grid-template-columns: 220px 1fr 240px; gap: 10px; padding: 10px; }
+}
+@media (max-width: 960px) {
+  .globe-overlay-inner { flex-direction: column; gap: 12px; height: 90vh; padding: 12px; align-items: center; }
+  .globe-big-wrap { width: 60vw; max-width: 300px; aspect-ratio: 1; }
+  .globe-intel-panel { width: 100%; max-width: 90vw; flex: none; }
+}
+@media (min-width: 961px) {
+  .globe-overlay-inner { flex-direction: row; }
+}
+@media (max-width: 860px) {
+  .main { grid-template-columns: 200px 1fr; }
+  .right { display: none; }
+  .sidebar::-webkit-scrollbar { width: 3px; }
+  .sidebar { gap: 8px; }
+}
+@media (max-width: 640px) {
+  .main { grid-template-columns: 1fr; gap: 8px; padding: 8px; }
+  .sidebar { display: none; }
+  .orb-card { height: 240px; }
+  .orb-left { padding: 16px 18px; }
+  .orb-right { padding: 16px 18px; }
+  .orb-num { font-size: 32px; }
+  .orb-canvas-wrap { width: 160px; }
+  .topbar { padding: 0 16px; margin: 0 8px; }
+  .bottombar { padding: 0 16px; margin: 0 8px; }
+}
+.intel-filter-tab.active { background: rgba(255,255,255,0.08); color: var(--text-primary); border-color: var(--card-border-hover); }
+.intel-filter-tab .tab-count {
+  font-size: 9px; background: rgba(255,255,255,0.1); padding: 1px 5px;
+  border-radius: 100px; margin-left: 4px;
+}
+
+/* News search */
+.intel-search {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: var(--r-sm); padding: 8px 12px;
+  transition: var(--transition);
+}
+.intel-search:focus-within { border-color: var(--blue); background: rgba(10,132,255,0.03); }
+.intel-search-icon { font-size: 14px; color: var(--text-tertiary); }
+.intel-search input {
+  flex: 1; background: none; border: none; outline: none;
+  font-size: 12px; color: var(--text-primary); font-family: 'Inter', sans-serif;
+}
+.intel-search input::placeholder { color: var(--text-tertiary); }
+
+/* News summary stats */
+.intel-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.intel-stat {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: var(--r-sm); padding: 10px 12px; text-align: center;
+  transition: var(--transition);
+}
+.intel-stat:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.intel-stat-val { font-size: 18px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.5px; }
+.intel-stat-label { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.intel-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-lg); padding: 16px 18px;
+  cursor: pointer; transition: var(--transition);
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.intel-card:hover { background: var(--card-hover); border-color: var(--card-border-hover); transform: translateY(-1px); }
+.intel-card-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.intel-card-tag {
+  padding: 3px 10px; border-radius: 100px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.intel-card-tag.war { background: var(--red-soft); color: var(--red); }
+.intel-card-tag.market { background: var(--blue-soft); color: var(--blue); }
+.intel-card-tag.geo { background: var(--orange-soft); color: var(--orange); }
+.intel-card-tag.alert { background: var(--green-soft); color: var(--green); }
+.intel-card-tag.tech { background: var(--purple-soft); color: var(--purple); }
+.intel-card-tag.energy { background: rgba(255,159,10,0.15); color: #ffb340; }
+.intel-card-tag.health { background: var(--pink-soft); color: var(--pink); }
+.intel-card-tag.climate { background: var(--teal-soft); color: var(--teal); }
+.intel-card-headline { font-size: 14px; font-weight: 500; color: var(--text-primary); line-height: 1.4; flex: 1; letter-spacing: -0.1px; }
+.intel-card-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.intel-card-footer { display: flex; justify-content: space-between; margin-top: 10px; }
+.intel-card-region { font-size: 11px; color: var(--text-tertiary); }
+.intel-card-time { font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+.intel-divider {
+  font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 10px; margin: 6px 0;
+}
+.intel-divider::after { content: ''; flex: 1; height: 1px; background: var(--card-border); }
+
+.intel-tickers {
+  display: none;
+}
+.intel-ticker {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--r-md);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+  transition: var(--transition);
+}
+.intel-ticker:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.intel-ticker-name { font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.8px; text-transform: uppercase; font-weight: 600; }
+.intel-ticker-val { font-size: 16px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.3px; }
+.intel-ticker-delta { font-size: 11px; font-weight: 500; }
+.intel-ticker-delta.up { color: var(--green); }
+.intel-ticker-delta.down { color: var(--red); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.s-card, .r-card, .orb-card, .globe-mini-card, .tabs-wrap {
+  animation: fadeIn 0.4s ease backwards;
+}
+.s-card:nth-child(1) { animation-delay: 0.05s; }
+.s-card:nth-child(2) { animation-delay: 0.1s; }
+.s-card:nth-child(3) { animation-delay: 0.15s; }
+.r-card:nth-child(1) { animation-delay: 0.05s; }
+.r-card:nth-child(2) { animation-delay: 0.1s; }
+.r-card:nth-child(3) { animation-delay: 0.15s; }
+.r-card:nth-child(4) { animation-delay: 0.2s; }
+.r-card:nth-child(5) { animation-delay: 0.25s; }
+.r-card:nth-child(6) { animation-delay: 0.3s; }
+
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div>
+    <div class="tb-logo">JARVIS</div>
+    <div class="tb-sub">Mark XXXIX · A.I. System</div>
+  </div>
+  <div class="tb-pills">
+    <div class="tb-pill active" id="tb-model"><div class="dot"></div> <span id="tb-model-text">Gemini</span></div>
+    <div class="tb-select-wrap">
+      <select id="model-select" onchange="changeModel(this.value)">
+        <option value="gemini">Gemini (Nuvem)</option>
+        <option value="auto">Automático</option>
+        <option value="llama">Ollama (Local)</option>
+      </select>
+      <svg class="tb-select-arrow" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="tb-pill warn" id="tb-wa"><div class="dot" style="background:var(--orange)"></div> WhatsApp standby</div>
+  </div>
+  <div class="tb-time" id="clock">--:--:--</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="s-card">
+      <div class="s-label">Automações</div>
+      <div class="s-row">
+        <div class="s-row-left">
+          <div class="s-icon">⬡</div>
+          <div><div class="s-name">Prospecção</div><div class="s-sub">Apify leads</div></div>
+        </div>
+        <button class="toggle" id="toggle-leads" onclick="this.classList.toggle('on'); triggerLeadGeneration()"></button>
+      </div>
+      <div class="s-row">
+        <div class="s-row-left">
+          <div class="s-icon">✉</div>
+          <div><div class="s-name">Disparo WA</div><div class="s-sub">IA negociação</div></div>
+        </div>
+        <button class="toggle blue" id="toggle-wa" onclick="this.classList.toggle('on'); triggerWhatsappAutomation()"></button>
+      </div>
+      <div class="s-row">
+        <div class="s-row-left">
+          <div class="s-icon">◉</div>
+          <div><div class="s-name">Gemini live</div><div class="s-sub">Voz real-time</div></div>
+        </div>
+        <button class="toggle on" id="toggle-gemini" onclick="this.classList.toggle('on'); triggerGeminiLive()"></button>
+      </div>
+    </div>
+
+    <div class="s-card">
+      <div class="s-label">Execuções</div>
+      <div class="s-nums">
+        <div class="s-num">
+          <div class="s-num-val" id="exec-count">143</div>
+          <div class="s-num-label">Total</div>
+        </div>
+        <div class="s-num">
+          <div class="s-num-val" id="leads-new-count">0</div>
+          <div class="s-num-label">Leads novos</div>
+        </div>
+        <div class="s-num">
+          <div class="s-num-val" id="leads-used-count">0</div>
+          <div class="s-num-label">Abordados</div>
+        </div>
+        <div class="s-num">
+          <div class="s-num-val" id="shots-count">0</div>
+          <div class="s-num-label">Disparos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-card">
+      <div class="s-label">Histórico</div>
+      <div class="s-row" style="cursor:pointer">
+        <div class="s-row-left">
+          <div class="s-icon">↻</div>
+          <div><div class="s-name">Logs</div><div class="s-sub" id="badge-logs-count">0 entradas</div></div>
+        </div>
+      </div>
+      <div class="s-row" style="cursor:pointer">
+        <div class="s-row-left">
+          <div class="s-icon">◎</div>
+          <div><div class="s-name">Memória</div><div class="s-sub">Long-term JSON</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center">
+    <!-- ORB CARD -->
+    <div class="orb-card">
+      <div class="orb-left">
+        <div>
+          <div class="orb-label">Execuções totais</div>
+          <div class="orb-num" id="orb-exec">143</div>
+          <div class="orb-sub">Comandos executados com sucesso</div>
+        </div>
+        <div class="orb-bars">
+          <div class="obar-row"><span>Neural</span><span id="bar-neural-val">72%</span></div>
+          <div class="obar-track"><div class="obar-fill" id="bar-neural" style="width:72%;background:var(--green)"></div></div>
+          <div class="obar-row" style="margin-top:8px"><span>API quota</span><span id="bar-api-val">0%</span></div>
+          <div class="obar-track"><div class="obar-fill" id="bar-api" style="width:0%;background:var(--blue)"></div></div>
+        </div>
+      </div>
+
+      <div class="orb-canvas-wrap">
+        <canvas id="webgl-canvas"></canvas>
+      </div>
+
+      <div class="orb-right">
+        <div class="orb-state">
+          <div class="orb-state-dot" id="state-dot"></div>
+          <span class="orb-state-text" id="system-status-hud">AGUARDANDO</span>
+        </div>
+        <div>
+          <div class="orb-cmd" id="last-command">—</div>
+          <div class="orb-cmd-time" id="last-command-time"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="cmd-mic" id="mic-trigger" onclick="handleMicTrigger()" aria-label="Microfone">🎤</button>
+          <div style="flex:1; display:flex; align-items:center; background:var(--card); border-radius:100px; padding:0 16px; border:1px solid var(--card-border);">
+            <span id="speak-btn-text" style="font-size:12px; color:var(--text-secondary); font-weight:400;">Falar com Jarvis</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs-wrap">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('logs',this)">Logs</button>
+        <button class="tab" onclick="switchTab('leads',this)">Leads <span class="tab-badge" id="leads-badge">0</span></button>
+        <button class="tab" onclick="switchTab('workflows',this)">Workflows</button>
+        <button class="tab" onclick="switchTab('perms',this)">Permissões</button>
+      </div>
+
+      <div class="tab-content active" id="tab-logs">
+        <div class="logs-wrap" id="message-container"></div>
+        <div class="input-area">
+          <button class="cmd-mic" onclick="handleMicTrigger()" aria-label="Microfone">🎤</button>
+          <input class="cmd-input" id="text-input" placeholder="Digite uma instrução para o JARVIS..." onkeydown="if(event.key==='Enter')sendTextCommand()"/>
+          <button class="cmd-send">▶</button>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-leads">
+        <div class="leads-wrap">
+          <div style="display:flex; gap:10px; margin-bottom:16px;">
+            <div style="flex:1; background:var(--green-soft); border-radius:var(--r-md); padding:14px 16px; border:1px solid rgba(48,209,88,0.1);">
+              <div style="font-size:22px; font-weight:600; color:var(--green);" id="leads-new-badge">0</div>
+              <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Novos</div>
+            </div>
+            <div style="flex:1; background:var(--blue-soft); border-radius:var(--r-md); padding:14px 16px; border:1px solid rgba(10,132,255,0.1);">
+              <div style="font-size:22px; font-weight:600; color:var(--blue);" id="leads-used-badge">0</div>
+              <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Abordados</div>
+            </div>
+          </div>
+          <div id="leads-new-list"><div class="leads-empty">Nenhum lead carregado.<br><span style="font-size:11px; color:var(--text-tertiary);">Use "prospectar leads" para iniciar.</span></div></div>
+          <div id="leads-used-list"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-workflows">
+        <div style="padding:24px; color:var(--text-tertiary); font-size:13px; text-align:center; margin-top:40px;">Nenhum workflow ativo.</div>
+      </div>
+
+      <div class="tab-content" id="tab-perms">
+        <div style="padding:24px; color:var(--text-tertiary); font-size:13px; text-align:center; margin-top:40px;">Gerenciado via config/api_keys.json</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <!-- GLOBE MINI -->
+    <div class="globe-mini-card" onclick="openGlobe()" title="Inteligência Global — Clique para expandir">
+      <canvas class="globe-mini-canvas" id="globe-mini-canvas"></canvas>
+      <div class="globe-mini-label">🌍 Intel Global</div>
+      <div class="threat-badge moderate" id="threat-badge">Moderado</div>
+      <div class="globe-mini-pulse">
+        <div class="globe-mini-pulse-dot"></div>
+        <span class="globe-mini-pulse-txt" id="globe-alert-count">3 alertas ativos</span>
+      </div>
+    </div>
+
+    <!-- NEWS FEED (stacked cards, scrollable) -->
+    <div class="news-feed-container" id="news-feed-container" aria-label="Feed de notícias">
+      <!-- Populated dynamically by updateGeopoliticsNews(news) -->
+      <div class="intel-card">
+        <div class="intel-card-top"><span class="intel-card-tag market">Mercado</span><div class="intel-card-headline">Nenhuma notícia carregada</div></div>
+        <div class="intel-card-body">Clique em "Intel Global" para atualizar.</div>
+        <div class="intel-card-footer"><span class="intel-card-region"></span><span class="intel-card-time"></span></div>
+      </div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-label">Atividade hoje</div>
+      <div style="font-size:36px; font-weight:600; color:var(--text-primary); line-height:1; letter-spacing:-1px;" id="act-pct">0<span style="font-size:18px; font-weight:400; color:var(--text-tertiary);">%</span></div>
+      <div style="font-size:12px; color:var(--text-tertiary); margin-top:4px;" id="act-sub">Aguardando...</div>
+      <div class="act-bars" id="act-bars" style="margin-top:14px;"></div>
+      <div class="act-labels"><span>00h</span><span>08h</span><span>16h</span><span>24h</span></div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-label">Saúde do sistema</div>
+      <div class="h-row"><div class="h-left"><div class="h-dot pulse" style="background:var(--green)"></div>Gemini API</div><div class="h-val">Online</div></div>
+      <div class="h-row"><div class="h-left"><div class="h-dot" id="h-wa-dot" style="background:var(--orange)"></div>WhatsApp Web</div><div class="h-val" id="h-wa-val">Standby</div></div>
+      <div class="h-row"><div class="h-left"><div class="h-dot pulse" style="background:var(--green)"></div>Apify client</div><div class="h-val">Pronto</div></div>
+      <div class="h-row"><div class="h-left"><div class="h-dot" style="background:var(--orange)"></div>Playwright</div><div class="h-val">Verificar</div></div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-label">Taxa de conversão</div>
+      <div class="p-num" id="conv-pct">0<span style="font-size:18px; font-weight:400; color:var(--text-tertiary);">%</span></div>
+      <div class="p-sub" id="conv-sub">Aguardando dados de leads</div>
+      <div class="p-track"><div class="p-fill" id="conv-bar" style="width:0%"></div></div>
+      <div class="p-labels"><span>0%</span><span>100%</span></div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-label">Ações rápidas</div>
+      <div class="q-grid">
+        <div class="q-btn" onclick="quickAction('prospectar leads em São Paulo')">
+          <div class="q-icon">⬡</div><div class="q-label">Prospectar</div>
+        </div>
+        <div class="q-btn" onclick="quickAction('iniciar disparo WhatsApp nos leads novos')">
+          <div class="q-icon">✉</div><div class="q-label">Disparar</div>
+        </div>
+        <div class="q-btn" onclick="quickAction('memory status')">
+          <div class="q-icon">◎</div><div class="q-label">Memória</div>
+        </div>
+        <div class="q-btn" onclick="quickAction('system insights')">
+          <div class="q-icon">⌖</div><div class="q-label">Insights</div>
+        </div>
+        <div class="q-btn" onclick="quickAction('atualizar notícias geopolíticas')">
+          <div class="q-icon">🌍</div><div class="q-label">Intel</div>
+        </div>
+        <div class="q-btn" onclick="quickAction('manage_crm action stats')">
+          <div class="q-icon">📊</div><div class="q-label">CRM</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-label">Status neural</div>
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <div class="dark-stat-row"><div class="dark-dot" id="ds-model-dot" style="background:var(--green)"></div><span class="dark-stat-text" id="ds-model-text">Gemini</span><span class="dark-stat-val" id="ds-model-val">online</span></div>
+        <div class="dark-stat-row"><div class="dark-dot" id="ds-wa" style="background:var(--orange)"></div><span class="dark-stat-text">WhatsApp</span><span class="dark-stat-val" id="ds-wa-val">Standby</span></div>
+        <div class="dark-stat-row"><div class="dark-dot" style="background:var(--green)"></div><span class="dark-stat-text">Memória</span><span class="dark-stat-val">55%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM -->
+<div class="bottombar">
+  <div class="bb-item"><div class="bb-dot pulse"></div><span id="status-hud-text">SISTEMA OPERACIONAL ATIVO</span></div>
+  <div class="bb-item">BUILD 39.4.2</div>
+  <div class="bb-item" style="margin-left:auto; color:var(--text-tertiary);">MARCOS XXXIX · SECURE LINK</div>
+</div>
+
+<script>
+// ── CLOCK ──
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');}
+setInterval(updateClock,1000); updateClock();
+
+// ── ACTIVITY BARS ──
+(function(){
+  const d=[4,8,12,7,15,22,18,30,45,38,62,71,58,80,92,74,65,55,48,40,35,28,20,14];
+  const c=document.getElementById('act-bars'); const mx=Math.max(...d);
+  d.forEach((v,i)=>{const b=document.createElement('div');b.className='act-bar'+(v>70?' hot':v>45?' peak':'');b.style.height=Math.max(4,Math.round(v/mx*48))+'px';c.appendChild(b);});
+})();
+
+// ── TABS ──
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ── LOGS (bridge function — called by Python) ──
+let totalExecutions=0; let logsCount=0;
+function addLog(isUser, message){
+  logsCount++;
+  const container=document.getElementById('message-container');
+  const now=new Date();
+  const time=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const cls = isUser?'user': message.startsWith('SYS:')||message.startsWith('ERR:')?'sys':'jarvis';
+  const role = isUser?'Você':'Jarvis';
+  const entry=document.createElement('div'); entry.className='log-entry '+cls;
+  entry.innerHTML=`<span class="log-role">${role}</span><span class="log-text">${message}</span><span class="log-time">${time}</span>`;
+  container.appendChild(entry); container.scrollTop=container.scrollHeight;
+  if(isUser){
+    totalExecutions++;
+    document.getElementById('exec-count').textContent=totalExecutions;
+    document.getElementById('orb-exec').textContent=totalExecutions;
+    const short=message.length>28?message.substring(0,25)+'...':message;
+    document.getElementById('last-command').textContent='"'+short+'"';
+    document.getElementById('last-command-time').textContent=time+' · via texto';
+  }
+  document.getElementById('badge-logs-count').textContent=logsCount+' entradas';
+}
+
+// ── STATE (bridge function — called by Python) ──
+let currentSystemState='LISTENING';
+function updateState(state){
+  currentSystemState=state;
+  const hud=document.getElementById('system-status-hud');
+  const dot=document.getElementById('state-dot');
+  const txt=document.getElementById('speak-btn-text');
+  const mic=document.getElementById('mic-trigger');
+  const statusTxt=document.getElementById('status-hud-text');
+  const stateMap={
+    LISTENING:{hud:'AGUARDANDO',txt:'Falar com Jarvis',dot:'var(--green)',status:'SISTEMA OPERACIONAL ATIVO'},
+    THINKING:{hud:'ANALISANDO',txt:'Analisando...',dot:'var(--blue)',status:'JARVIS PROCESSANDO DADOS NEURAIS'},
+    SPEAKING:{hud:'FALANDO',txt:'Jarvis Falando...',dot:'var(--orange)',status:'JARVIS RESPONDENDO AO COMANDO'},
+    MUTED:{hud:'MUTADO',txt:'Microfone Mutado',dot:'var(--red)',status:'MODO DE ESCUTA SILENCIADO'},
+    NIGHT_MODE:{hud:'🌙 NOTURNO',txt:'Modo Noturno',dot:'var(--text-tertiary)',status:'JARVIS EM REPOUSO NOTURNO'},
+  };
+  const s=stateMap[state]||stateMap.LISTENING;
+  hud.textContent=s.hud; txt.textContent=s.txt; dot.style.background=s.dot;
+  statusTxt.textContent=s.status;
+  mic.className='cmd-mic'+(state==='SPEAKING'?' speaking':'');
+}
+
+// ── VOLUME (bridge function — called by Python) ──
+let audioVolume=0.0;
+function updateVolume(vol){ audioVolume=vol; }
+
+// ── API QUOTA (bridge function — called by Python) ──
+function updateApiQuota(data){
+  if(typeof data==='string')try{data=JSON.parse(data);}catch(e){return;}
+  const pct=data.pct||0;
+  const model=data.model||'';
+  document.getElementById('bar-api-val').textContent=pct+'%';
+  document.getElementById('bar-api').style.width=pct+'%';
+  const color=pct>80?'var(--orange)':pct>95?'var(--red)':'var(--blue)';
+  document.getElementById('bar-api').style.background=color;
+}
+
+// ── LEADS (bridge function — called by Python) ──
+function updateLeadsData(leadsDataStr){
+  try{
+    const data=typeof leadsDataStr==='string'?JSON.parse(leadsDataStr):leadsDataStr;
+    const nL=data.new||[]; const uL=data.used||[];
+    document.getElementById('leads-new-count').textContent=nL.length;
+    document.getElementById('leads-used-count').textContent=uL.length;
+    document.getElementById('leads-new-badge').textContent=nL.length;
+    document.getElementById('leads-used-badge').textContent=uL.length;
+    document.getElementById('leads-badge').textContent=nL.length;
+    const rend=(lead,type)=>{
+      const init=(lead.title||lead.name||'?').charAt(0).toUpperCase();
+      const tag=type==='new'?'new':'contacted';
+      const tagTxt=type==='new'?'Novo':'Abordado';
+      return `<div class="lead-item"><div class="lead-avatar">${init}</div><div class="lead-info"><div class="lead-name">${lead.title||lead.name||'Desconhecido'}</div><div class="lead-phone">${lead.phoneUnformatted||lead.phone||'Sem número'}</div></div><div class="lead-tag ${tag}">${tagTxt}</div></div>`;
+    };
+    document.getElementById('leads-new-list').innerHTML=nL.map(l=>rend(l,'new')).join('')||'<div class="leads-empty">Nenhum lead novo.</div>';
+    document.getElementById('leads-used-list').innerHTML=uL.map(l=>rend(l,'used')).join('');
+    const pct=Math.round(15+Math.random()*25);
+    document.getElementById('conv-pct').innerHTML=pct+'<span style="font-size:18px;font-weight:400;color:var(--text-tertiary);">%</span>';
+    document.getElementById('conv-bar').style.width=pct+'%';
+    document.getElementById('conv-sub').textContent='Baseado em '+nL.length+' leads ativos';
+    document.getElementById('act-pct').innerHTML=(20+nL.length*3)+'<span style="font-size:18px;font-weight:400;color:var(--text-tertiary);">%</span>';
+    document.getElementById('act-sub').textContent=nL.length+' leads na fila · '+(nL.length?'Alta atividade':'Aguardando');
+  }catch(e){console.error('updateLeadsData error',e);}
+}
+
+// ── GEOPOLITICS (bridge function — called by Python) ──
+let geopoliticsData = null;
+function updateGeopoliticsNews(newsDataStr){
+  try {
+    const data = typeof newsDataStr === 'string' ? JSON.parse(newsDataStr) : newsDataStr;
+    geopoliticsData = data;
+    const news = data.news || [];
+    const markets = data.markets || [];
+    const threatLevel = data.threat_level || 'moderate';
+    const updated = data.updated_at || '--:--';
+
+    // Update threat badge on mini globe
+    const badge = document.getElementById('threat-badge');
+    if(badge){
+      badge.className = 'threat-badge ' + threatLevel;
+      const labels = {low:'Baixo',moderate:'Moderado',elevated:'Elevado',high:'Alto',critical:'CRÍTICO'};
+      badge.textContent = labels[threatLevel] || threatLevel;
+    }
+
+    // Update alert count
+    const alertCount = news.filter(n => n.category === 'war' || n.category === 'alert').length;
+    const pulseTxt = document.getElementById('globe-alert-count');
+    if(pulseTxt) pulseTxt.textContent = `${alertCount} alertas ativos`;
+
+    // Update globe hotspots from news lat/lon
+    if(news.length > 0){
+      const hs = news
+        .filter(n => n.lat != null && n.lon != null)
+        .map(n => ({
+          lat: n.lat,
+          lon: n.lon,
+          label: n.title.length > 20 ? n.title.substring(0,18)+'...' : n.title,
+          title: n.title,
+          body: n.body,
+          region: n.region,
+          time: n.time,
+          category: n.category,
+          color: n.category === 'war' ? '#ff453a' : n.category === 'alert' ? '#ff9f0a' : n.category === 'tech' ? '#bf5af2' : n.category === 'energy' ? '#ffb340' : n.category === 'health' ? '#ff375f' : n.category === 'climate' ? '#64d2ff' : '#30d158'
+        }));
+      if(hs.length > 0) updateGlobeHotspots(hs);
+    }
+
+    const panel = document.querySelector('.globe-intel-panel');
+    if (!panel) return;
+
+    const categoryCounts = {};
+    news.forEach(item => { categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1; });
+
+    const conflictsCount = (categoryCounts['war']||0)+(categoryCounts['alert']||0);
+    const marketsCount = (categoryCounts['market']||0)+(categoryCounts['geo']||0);
+    const techCount = categoryCounts['tech']||0;
+    const healthCount = categoryCounts['health']||0;
+    const climateCount = categoryCounts['climate']||0;
+    const energyCount = categoryCounts['energy']||0;
+    const totalNews = news.length;
+
+    let html = `
+      <div>
+        <div class="intel-header">Inteligência Global · Tempo real</div>
+        <div class="intel-title">Monitor de Eventos<br>Geopolíticos</div>
+        <div class="intel-sub">Atualizado às ${updated} · ${totalNews} eventos · Nível: ${threatLevel}</div>
+      </div>
+      <div class="intel-filter-tabs">
+        <div class="intel-filter-tab active" onclick="filterNews('all',this)">Todos<span class="tab-count">${totalNews}</span></div>
+        ${conflictsCount ? `<div class="intel-filter-tab" onclick="filterNews('war',this)">Conflitos<span class="tab-count">${conflictsCount}</span></div>` : ''}
+        ${marketsCount ? `<div class="intel-filter-tab" onclick="filterNews('market',this)">Mercados<span class="tab-count">${marketsCount}</span></div>` : ''}
+        ${techCount ? `<div class="intel-filter-tab" onclick="filterNews('tech',this)">Tech<span class="tab-count">${techCount}</span></div>` : ''}
+        ${healthCount ? `<div class="intel-filter-tab" onclick="filterNews('health',this)">Saúde<span class="tab-count">${healthCount}</span></div>` : ''}
+        ${climateCount ? `<div class="intel-filter-tab" onclick="filterNews('climate',this)">Clima<span class="tab-count">${climateCount}</span></div>` : ''}
+        ${energyCount ? `<div class="intel-filter-tab" onclick="filterNews('energy',this)">Energia<span class="tab-count">${energyCount}</span></div>` : ''}
+      </div>
+      <div class="intel-search">
+        <span class="intel-search-icon">🔍</span>
+        <input type="text" placeholder="Buscar eventos, regiões..." oninput="searchNews(this.value)"/>
+      </div>
+      <div class="intel-stats">
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--red);">${conflictsCount}</div>
+          <div class="intel-stat-label">Conflitos</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--orange);">${categoryCounts['alert']||0}</div>
+          <div class="intel-stat-label">Alertas</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--blue);">${marketsCount}</div>
+          <div class="intel-stat-label">Mercados</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--green);">${new Set(news.map(n=>n.region)).size}</div>
+          <div class="intel-stat-label">Regiões</div>
+        </div>
+      </div>
+    `;
+
+    const conflicts = news.filter(item => item.category === 'war' || item.category === 'alert');
+    const markets_news = news.filter(item => item.category === 'market' || item.category === 'geo');
+    const tech_energy = news.filter(item => item.category === 'tech' || item.category === 'energy');
+    const health_climate = news.filter(item => item.category === 'health' || item.category === 'climate');
+
+    if (conflicts.length > 0) {
+      html += `<div class="intel-divider">Conflitos & Segurança</div>`;
+      conflicts.forEach(item => {
+        const catClass = item.category;
+        const catLabel = item.category === 'war' ? 'Guerra' : 'Alerta';
+        const cleanTitle = item.title.replace(/'/g, "\\'");
+        html += `
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+            <div class="intel-card-top">
+              <span class="intel-card-tag ${catClass}">${catLabel}</span>
+              <div class="intel-card-headline">${item.title}</div>
+            </div>
+            <div class="intel-card-body">${item.body}</div>
+            <div class="intel-card-footer">
+              <span class="intel-card-region">${item.region}</span>
+              <span class="intel-card-time">${item.time}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    if (markets.length > 0) {
+      html += `
+        <div class="intel-divider">Mercados & Economia</div>
+        <div class="intel-tickers">
+      `;
+      markets.forEach(m => {
+        html += `
+          <div class="intel-ticker">
+            <div class="intel-ticker-name">${m.name}</div>
+            <div class="intel-ticker-val">${m.val}</div>
+            <div class="intel-ticker-delta ${m.up ? 'up' : 'down'}">${m.up ? '▲' : '▼'} ${m.up ? '+' : '-'}${m.delta}%</div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    if (markets_news.length > 0) {
+      markets_news.forEach(item => {
+        const catClass = item.category;
+        const catLabel = item.category === 'market' ? 'Mercado' : 'Geopolítica';
+        const cleanTitle = item.title.replace(/'/g, "\\'");
+        html += `
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+            <div class="intel-card-top">
+              <span class="intel-card-tag ${catClass}">${catLabel}</span>
+              <div class="intel-card-headline">${item.title}</div>
+            </div>
+            <div class="intel-card-body">${item.body}</div>
+            <div class="intel-card-footer">
+              <span class="intel-card-region">${item.region}</span>
+              <span class="intel-card-time">${item.time}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    if (tech_energy.length > 0) {
+      html += `<div class="intel-divider">Tech & Energia</div>`;
+      tech_energy.forEach(item => {
+        const catClass = item.category;
+        const catLabel = item.category === 'tech' ? 'Tech' : 'Energia';
+        const cleanTitle = item.title.replace(/'/g, "\\'");
+        html += `
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+            <div class="intel-card-top">
+              <span class="intel-card-tag ${catClass}">${catLabel}</span>
+              <div class="intel-card-headline">${item.title}</div>
+            </div>
+            <div class="intel-card-body">${item.body}</div>
+            <div class="intel-card-footer">
+              <span class="intel-card-region">${item.region}</span>
+              <span class="intel-card-time">${item.time}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    if (health_climate.length > 0) {
+      html += `<div class="intel-divider">Saúde & Clima</div>`;
+      health_climate.forEach(item => {
+        const catClass = item.category;
+        const catLabel = item.category === 'health' ? 'Saúde' : 'Clima';
+        const cleanTitle = item.title.replace(/'/g, "\\'");
+        html += `
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+            <div class="intel-card-top">
+              <span class="intel-card-tag ${catClass}">${catLabel}</span>
+              <div class="intel-card-headline">${item.title}</div>
+            </div>
+            <div class="intel-card-body">${item.body}</div>
+            <div class="intel-card-footer">
+              <span class="intel-card-region">${item.region}</span>
+              <span class="intel-card-time">${item.time}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    panel.innerHTML = html;
+    // Populate right-column news feed (stacked cards)
+    try{
+      const feed = document.getElementById('news-feed-container');
+      if(feed){
+        feed.innerHTML = news.map(item=>{
+          const tag = item.category==='war'? 'Guerra' : (item.category || 'Info');
+          return `\n            <div class="intel-card" data-category="${item.category}">\n              <div class="intel-card-top">\n                <span class="intel-card-tag ${item.category}">${tag}</span>\n                <div class="intel-card-headline">${item.title}</div>\n              </div>\n              <div class="intel-card-body">${item.body}</div>\n              <div class="intel-card-footer">\n                <span class="intel-card-region">${item.region||''}</span>\n                <span class="intel-card-time">${item.time||''}</span>\n              </div>\n            </div>\n          `;
+        }).join('');
+      }
+    }catch(e){console.error('feed populate error',e);}
+    currentNewsFilter = 'all';
+    currentNewsSearch = '';
+
+    // Update 3D globe hotspots if overlay is open
+    if(globeBigRunning && news.length > 0){
+      const hs = news
+        .filter(n => n.lat != null && n.lon != null)
+        .map(n => ({
+          lat: n.lat,
+          lon: n.lon,
+          title: n.title,
+          body: n.body,
+          region: n.region,
+          time: n.time,
+          category: n.category,
+          color: n.category === 'war' ? '#ff453a' : n.category === 'alert' ? '#ff9f0a' : n.category === 'tech' ? '#bf5af2' : n.category === 'energy' ? '#ffb340' : n.category === 'health' ? '#ff375f' : n.category === 'climate' ? '#64d2ff' : '#30d158'
+        }));
+      if(hs.length > 0){
+        globeBigNewsData = hs;
+        // Reinit big globe with new hotspots
+        globeBigRunning = false;
+        if(globeBigRenderer){
+          globeBigRenderer.dispose();
+          globeBigRenderer = null;
+        }
+        globeBigHotspotMarkers = [];
+        globeBigGroup = null;
+        globeBigEarthMesh = null;
+        globeBigNightMesh = null;
+        initGlobeBig();
+      }
+    }
+  } catch(e) {
+    console.error('updateGeopoliticsNews error', e);
+  }
+}
+
+// ── MODEL SELECTOR ──
+let currentModelMode='gemini';
+let currentOllamaModel='qwen2.5:3b';
+let _modelChangeGuard=false;
+function changeModel(value, fromPython){
+  if(value===currentModelMode)return;
+  currentModelMode=value;
+  const labels={gemini:'Gemini',auto:'Auto',llama:'Ollama'};
+  document.getElementById('tb-model-text').textContent=labels[value]||value;
+  const dot=document.querySelector('#tb-model .dot');
+  if(value==='llama'){
+    dot.style.background='var(--purple)'; dot.style.boxShadow='0 0 6px var(--purple)';
+    document.getElementById('tb-model').style.borderColor='rgba(191,90,242,0.2)';
+    document.getElementById('tb-model').style.background='var(--purple-soft)';
+    document.getElementById('tb-model').style.color='var(--purple)';
+  }else if(value==='auto'){
+    dot.style.background='var(--teal)'; dot.style.boxShadow='0 0 6px var(--teal)';
+    document.getElementById('tb-model').style.borderColor='rgba(100,210,255,0.2)';
+    document.getElementById('tb-model').style.background='var(--teal-soft)';
+    document.getElementById('tb-model').style.color='var(--teal)';
+  }else{
+    dot.style.background='var(--green)'; dot.style.boxShadow='0 0 6px var(--green)';
+    document.getElementById('tb-model').style.borderColor='rgba(48,209,88,0.2)';
+    document.getElementById('tb-model').style.background='var(--green-soft)';
+    document.getElementById('tb-model').style.color='var(--green)';
+  }
+  if(!fromPython) console.log('CMD:set_mode:'+value);
+}
+function updateModelInfo(info){
+  try{
+    if(typeof info==='string'){info=JSON.parse(info);}
+    if(info.mode){
+      document.getElementById('model-select').value=info.mode;
+      changeModel(info.mode, true);
+      const labels={gemini:'Gemini',auto:'Auto',llama:'Ollama'};
+      document.getElementById('ds-model-text').textContent=labels[info.mode]||info.mode;
+      const dsDot=document.getElementById('ds-model-dot');
+      if(info.mode==='llama'){
+        dsDot.style.background='var(--purple)';
+        document.getElementById('ds-model-val').textContent=info.ollama_model||'local';
+      }else if(info.mode==='auto'){
+        dsDot.style.background='var(--teal)';
+        document.getElementById('ds-model-val').textContent='híbrido';
+      }else{
+        dsDot.style.background='var(--green)';
+        document.getElementById('ds-model-val').textContent='online';
+      }
+    }
+    if(info.ollama_model){
+      currentOllamaModel=info.ollama_model;
+      if(info.mode==='llama') document.getElementById('ds-model-val').textContent=info.ollama_model;
+    }
+  }catch(e){console.error('updateModelInfo error',e);}
+}
+
+// ── CMD BRIDGE ──
+function handleMicTrigger(){ console.log('CMD:speak_trigger'); }
+function sendTextCommand(){
+  const inp=document.getElementById('text-input');
+  const txt=inp.value.trim(); if(!txt)return;
+  addLog(true,txt); inp.value='';
+  console.log('CMD:'+txt);
+  // Simulate JARVIS processing
+  updateState('THINKING');
+  setTimeout(()=>{
+    addLog(false,'JARVIS: Comando recebido. Processando...');
+    updateState('LISTENING');
+  },1500);
+}
+function quickAction(cmd){
+  document.getElementById('text-input').value=cmd;
+  sendTextCommand();
+}
+function requestLeadsRefresh(){ console.log('CMD:request_leads_refresh'); }
+
+// ── AUTOMATIONS ──
+let leadGenerationActive=false;
+function triggerLeadGeneration(){
+  leadGenerationActive=!leadGenerationActive;
+  if(leadGenerationActive){addLog(false,'SYS: Iniciando busca automatizada de leads...');console.log('CMD:start lead generation prospecting');}
+  else{addLog(false,'SYS: Busca de leads desativada.');console.log('CMD:stop lead generation prospecting');}
+}
+let whatsappAutomationActive=false;
+function triggerWhatsappAutomation(){
+  whatsappAutomationActive=!whatsappAutomationActive;
+  const dot=document.getElementById('h-wa-dot');
+  const val=document.getElementById('h-wa-val');
+  const dsDot=document.getElementById('ds-wa');
+  const dsVal=document.getElementById('ds-wa-val');
+  const pill=document.getElementById('tb-wa');
+  if(whatsappAutomationActive){
+    addLog(false,'SYS: Iniciando disparo automatizado de abordagens no WhatsApp...');
+    console.log('CMD:start whatsapp automation agent');
+    dot.style.background='var(--green)'; dot.classList.add('pulse'); val.textContent='Ativo';
+    dsDot.style.background='var(--green)'; dsVal.textContent='Ativo';
+    pill.className='tb-pill active';
+    pill.innerHTML='<div class="dot"></div> WhatsApp ativo';
+  }else{
+    addLog(false,'SYS: Automação de abordagens desativada.');
+    console.log('CMD:close whatsapp automation agent');
+    dot.style.background='var(--orange)'; dot.classList.remove('pulse'); val.textContent='Standby';
+    dsDot.style.background='var(--orange)'; dsVal.textContent='Standby';
+    pill.className='tb-pill warn';
+    pill.innerHTML='<div class="dot" style="background:var(--orange)"></div> WhatsApp standby';
+  }
+}
+let geminiLiveActive=true;
+function triggerGeminiLive(){
+  geminiLiveActive=!geminiLiveActive;
+  if(geminiLiveActive){addLog(false,'SYS: Conexão Gemini Live restabelecida.');console.log('CMD:connect_live_link');updateState('LISTENING');}
+  else{addLog(false,'SYS: Conexão Gemini Live suspensa.');console.log('CMD:disconnect_live_link');updateState('MUTED');}
+}
+
+// ── THREE.JS ORB (Particle System) ──
+let orbRenderer, orbScene, orbCamera, orbParticleSphere, orbCore, orbCoreMat, orbRingPts, orbRing2Pts, orbPmat, orbRmat, orbR2mat;
+
+function initOrb(){
+  const canvas=document.getElementById('webgl-canvas');
+  const container=canvas?.parentElement;
+  if(!canvas || !container){
+    console.warn('Orb: canvas or container not found, retrying...');
+    setTimeout(initOrb, 200);
+    return;
+  }
+
+  const orbW=container.clientWidth||220;
+  const orbH=container.clientHeight||280;
+  if(orbW < 10 || orbH < 10){
+    console.warn('Orb: container too small, retrying...');
+    setTimeout(initOrb, 200);
+    return;
+  }
+
+  canvas.width=orbW; canvas.height=orbH;
+  canvas.style.width='100%'; canvas.style.height='100%';
+
+  orbRenderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+  orbRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  orbRenderer.setSize(orbW,orbH);
+  orbRenderer.setClearColor(0x000000,0);
+  orbScene=new THREE.Scene();
+  orbCamera=new THREE.PerspectiveCamera(45,orbW/orbH,0.1,100);
+  orbCamera.position.z=5;
+
+  // Main particle sphere - BLACK PARTICLES
+  const PCOUNT=1500;
+  const pGeo=new THREE.BufferGeometry();
+  const pPos=new Float32Array(PCOUNT*3);
+  const pCol=new Float32Array(PCOUNT*3);
+  const pSizes=new Float32Array(PCOUNT);
+  for(let i=0;i<PCOUNT;i++){
+    const i3=i*3;
+    const theta=Math.random()*Math.PI*2;
+    const phi=Math.acos(2*Math.random()-1);
+    const r=1.0+Math.random()*0.5;
+    pPos[i3]=r*Math.sin(phi)*Math.cos(theta);
+    pPos[i3+1]=r*Math.sin(phi)*Math.sin(theta);
+    pPos[i3+2]=r*Math.cos(phi);
+    pCol[i3]=1; pCol[i3+1]=1; pCol[i3+2]=1;
+    pSizes[i]=Math.random()*2.5+1.5;
+  }
+  pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+  pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+  pGeo.setAttribute('size',new THREE.BufferAttribute(pSizes,1));
+
+  orbPmat=new THREE.ShaderMaterial({
+    uniforms:{
+      uTime:{value:0},
+      uIntensity:{value:0},
+      uPR:{value:Math.min(window.devicePixelRatio,2)}
+    },
+    vertexShader:`
+      attribute float size;
+      attribute vec3 color;
+      varying vec3 vColor;
+      varying float vAlpha;
+      uniform float uTime;
+      uniform float uIntensity;
+      uniform float uPR;
+      void main(){
+        vColor=color;
+        vec3 pos=position;
+        float dist=length(pos);
+        pos+=normalize(pos)*sin(uTime*1.2+dist*4.0)*0.06*(0.5+uIntensity*0.5);
+        vec4 mv=modelViewMatrix*vec4(pos,1.0);
+        gl_PointSize=size*uPR*(1.8/(1.0+uIntensity*1.5))*(-mv.z/5.0);
+        gl_Position=projectionMatrix*mv;
+        vAlpha=0.5+uIntensity*0.5;
+      }
+    `,
+    fragmentShader:`
+      varying vec3 vColor;
+      varying float vAlpha;
+      void main(){
+        float d=length(gl_PointCoord-0.5);
+        if(d>0.5)discard;
+        float a=smoothstep(0.5,0.05,d)*vAlpha;
+        gl_FragColor=vec4(vColor,a);
+      }
+    `,
+    transparent:true,
+    depthWrite:false,
+    blending:THREE.AdditiveBlending
+  });
+  orbParticleSphere=new THREE.Points(pGeo,orbPmat);
+  orbScene.add(orbParticleSphere);
+
+  // Inner core glow - GREEN
+  const coreGeo=new THREE.SphereGeometry(0.6,32,32);
+  orbCoreMat=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0.35,blending:THREE.AdditiveBlending});
+  orbCore=new THREE.Mesh(coreGeo,orbCoreMat);
+  orbScene.add(orbCore);
+
+  // Orbital ring particles - BLUE
+  const RCOUNT=400;
+  const rGeo=new THREE.BufferGeometry();
+  const rPos=new Float32Array(RCOUNT*3);
+  const rCol=new Float32Array(RCOUNT*3);
+  for(let i=0;i<RCOUNT;i++){
+    const i3=i*3;
+    const a=(i/RCOUNT)*Math.PI*2;
+    const r=1.6+Math.sin(a*4)*0.05;
+    rPos[i3]=Math.cos(a)*r;
+    rPos[i3+1]=Math.sin(a*0.4)*0.2;
+    rPos[i3+2]=Math.sin(a)*r;
+    // pCol[i3]=0.04; pCol[i3+1]=0.52; pCol[i3+2]=1.0;
+    rCol[i3]=0.0; rCol[i3+1]=0.0; rCol[i3+2]=0.0; // Black
+  }
+  rGeo.setAttribute('position',new THREE.BufferAttribute(rPos,3));
+  rGeo.setAttribute('color',new THREE.BufferAttribute(rCol,3));
+  orbRmat=new THREE.PointsMaterial({
+    size:2,vertexColors:true,transparent:true,opacity:0.0,
+    blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
+  });
+  orbRingPts=new THREE.Points(rGeo,orbRmat);
+  orbRingPts.rotation.x=Math.PI*0.4;
+  // orbScene.add(orbRingPts);
+
+  // Second ring - PURPLE
+  const r2Geo=new THREE.BufferGeometry();
+  const r2Pos=new Float32Array(RCOUNT*3);
+  const r2Col=new Float32Array(RCOUNT*3);
+  for(let i=0;i<RCOUNT;i++){
+    const i3=i*3;
+    const a=(i/RCOUNT)*Math.PI*2;
+    const r=1.85;
+    r2Pos[i3]=Math.cos(a)*r;
+    r2Pos[i3+1]=Math.sin(a*0.6)*0.15;
+    r2Pos[i3+2]=Math.sin(a)*r;
+    r2Col[i3]=0.75; r2Col[i3+1]=0.35; r2Col[i3+2]=0.95;
+  }
+  r2Geo.setAttribute('position',new THREE.BufferAttribute(r2Pos,3));
+  r2Geo.setAttribute('color',new THREE.BufferAttribute(r2Col,3));
+  orbR2mat=new THREE.PointsMaterial({
+    size:1.5,vertexColors:true,transparent:true,opacity:0.25,
+    blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
+  });
+  orbRing2Pts=new THREE.Points(r2Geo,orbR2mat);
+  orbRing2Pts.rotation.x=Math.PI*0.6;
+  orbRing2Pts.rotation.z=Math.PI*0.3;
+  // orbScene.add(orbRing2Pts); // Removed glow ring
+
+  const clock=new THREE.Clock();
+  let tI=0,cI=0;
+  function animate(){
+    requestAnimationFrame(animate);
+    const t=clock.getElapsedTime();
+    let bp=0;
+    if(typeof currentSystemState!=='undefined'){
+      if(currentSystemState==='LISTENING')bp=(Math.sin(t*2.0)*0.5+0.5)*0.15;
+      else if(currentSystemState==='SPEAKING')bp=(typeof audioVolume!=='undefined'?audioVolume:0)*0.8;
+      else if(currentSystemState==='THINKING')bp=0.25+(Math.sin(t*5.0)*0.5+0.5)*0.25;
+      else if(currentSystemState==='MUTED')bp=0.02;
+      else if(currentSystemState==='NIGHT_MODE')bp=0.01;
+    }
+    tI=bp; cI+=(tI-cI)*0.08;
+    orbPmat.uniforms.uTime.value=t;
+    orbPmat.uniforms.uIntensity.value=cI;
+    orbParticleSphere.rotation.y=t*0.06;
+    orbParticleSphere.rotation.x=Math.sin(t*0.04)*0.08;
+    orbCore.scale.set(1+cI*0.2,1+cI*0.2,1+cI*0.2);
+    orbCoreMat.opacity=0.08+cI*0.15;
+    orbRingPts.rotation.z=t*0.1;
+    orbRing2Pts.rotation.z=-t*0.08;
+    orbRmat.opacity=0.5+cI*0.3;
+    orbR2mat.opacity=0.25+cI*0.2;
+    orbRenderer.render(orbScene,orbCamera);
+  }
+  animate();
+
+  // Resize observer
+  const ro=new ResizeObserver(()=>{
+    const w=container.clientWidth||220;
+    const h=container.clientHeight||280;
+    if(w>10 && h>10){
+      canvas.width=w; canvas.height=h;
+      orbRenderer.setSize(w,h);
+      orbCamera.aspect=w/h;
+      orbCamera.updateProjectionMatrix();
+    }
+  });
+  ro.observe(container);
+}
+
+// Initialize after DOM is ready
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(initOrb,300));
+}else{
+  setTimeout(initOrb,300);
+}
+
+// Boot
+// setTimeout(()=>addLog(false,'SYS: Conexão com Gemini Live estabelecida.'),800);
+// setTimeout(()=>addLog(false,'SYS: Verificando configurações de api_keys.json...'),1600);
+// setTimeout(()=>{addLog(false,'Sistema pronto. Diga um comando ou use as ações rápidas.');updateState('LISTENING');},2400);
+updateState('LISTENING');
+
+// ── 3D GLOBE MINI (Three.js with Earth texture) ──
+(function initGlobeMini(){
+  const container = document.getElementById('globe-mini-canvas').parentElement;
+  const c = document.getElementById('globe-mini-canvas');
+  if(!c || !container) return;
+
+  // Ensure canvas has explicit pixel dimensions
+  const w = container.clientWidth || 280;
+  const h = container.clientHeight || 160;
+  c.width = w;
+  c.height = h;
+
+  const renderer = new THREE.WebGLRenderer({canvas:c, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(w, h);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, w/h, 0.1, 100);
+  camera.position.z = 3.2;
+
+  const textureLoader = new THREE.TextureLoader();
+
+  // High-res NASA textures via reliable CDN
+  const earthTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg');
+  const bumpTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png');
+  const nightTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-night.jpg');
+  const waterTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-water.png');
+
+  // Main earth sphere with high-res textures
+  const globeGeo = new THREE.SphereGeometry(1, 128, 128);
+  const globeMat = new THREE.MeshPhongMaterial({
+    map: earthTex,
+    bumpMap: bumpTex,
+    bumpScale: 0.05,
+    specularMap: waterTex,
+    specular: new THREE.Color(0x333333),
+    shininess: 25
+  });
+  const globe = new THREE.Mesh(globeGeo, globeMat);
+  scene.add(globe);
+
+  // Night lights overlay
+  const nightMat = new THREE.MeshBasicMaterial({map:nightTex, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending});
+  const nightMesh = new THREE.Mesh(new THREE.SphereGeometry(1.002, 128, 128), nightMat);
+  scene.add(nightMesh);
+
+  // Cloud layer
+  const cloudGeo = new THREE.SphereGeometry(1.01, 64, 64);
+  const cloudMat = new THREE.MeshBasicMaterial({map:waterTex, transparent:true, opacity:0.06, blending:THREE.AdditiveBlending, depthWrite:false});
+  const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+  scene.add(cloudMesh);
+
+  // Atmosphere glow
+  const atmosGeo = new THREE.SphereGeometry(1.08, 32, 32);
+  const atmosMat = new THREE.ShaderMaterial({
+    vertexShader:`varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying vec3 vNormal;void main(){float intensity=pow(0.65-dot(vNormal,vec3(0,0,1)),2.0);gl_FragColor=vec4(0.3,0.6,1.0,1.0)*intensity*0.6;}`,
+    blending:THREE.AdditiveBlending, side:THREE.BackSide, transparent:true
+  });
+  scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  sunLight.position.set(5, 3, 5);
+  scene.add(sunLight);
+  scene.add(new THREE.AmbientLight(0x445577, 0.7));
+
+  // City dots on the globe
+  const cities = [
+    {lat:40.7,lon:-74},{lat:34,lon:-118},{lat:41.9,lon:-87.6},{lat:29.8,lon:-95.4},
+    {lat:51.5,lon:-0.1},{lat:48.9,lon:2.35},{lat:52.5,lon:13.4},{lat:41.9,lon:12.5},
+    {lat:55.75,lon:37.6},{lat:35.7,lon:51.4},{lat:28.6,lon:77.2},{lat:19.1,lon:72.9},
+    {lat:39.9,lon:116.4},{lat:31.2,lon:121.5},{lat:35.7,lon:139.7},{lat:37.6,lon:127},
+    {lat:-33.9,lon:151.2},{lat:-23.5,lon:-46.6},{lat:-22.9,lon:-43.2},{lat:19.4,lon:-99.1},
+    {lat:-34.6,lon:-58.4},{lat:1.3,lon:103.8},{lat:13.8,lon:100.5},{lat:6.5,lon:3.4},
+    {lat:-1.3,lon:36.8},{lat:30,lon:31.2},{lat:33.9,lon:-118.2},{lat:47.6,lon:-122.3},
+    {lat:25.2,lon:55.3},{lat:24.5,lon:54.6},{lat:37.9,lon:23.7},{lat:59.3,lon:18.1},
+    {lat:60.2,lon:24.9},{lat:50.1,lon:14.4},{lat:48.2,lon:16.4},{lat:45.5,lon:-73.6},
+    {lat:33.6,lon:-7.6},{lat:36.8,lon:10.2},{lat:-33.9,lon:18.4},{lat:26.2,lon:50.6},
+  ];
+  const cityGeoMini = new THREE.BufferGeometry();
+  const cityPosMini = new Float32Array(cities.length * 3);
+  cities.forEach((d,i)=>{
+    const phi=(90-d.lat)*Math.PI/180, theta=(d.lon+180)*Math.PI/180, r=1.015;
+    cityPosMini[i*3]=-r*Math.sin(phi)*Math.cos(theta);
+    cityPosMini[i*3+1]=r*Math.cos(phi);
+    cityPosMini[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
+  });
+  cityGeoMini.setAttribute('position', new THREE.BufferAttribute(cityPosMini, 3));
+  const cityMatMini = new THREE.PointsMaterial({color:0x6ec6ff, size:0.025, transparent:true, opacity:0.5});
+  scene.add(new THREE.Points(cityGeoMini, cityMatMini));
+
+  // AI Data rings around globe
+  const ringColorsMini = [0x30d158, 0x0a84ff, 0xbf5af2];
+  const dataRingsMini = [];
+  ringColorsMini.forEach((col, i) => {
+    const ringGeo = new THREE.TorusGeometry(1.12 + i*0.08, 0.002, 8, 80);
+    const ringMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.15});
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI/2 + i*0.15;
+    ring.rotation.y = i*0.3;
+    scene.add(ring);
+    dataRingsMini.push({mesh:ring, speed:0.001 + i*0.0005, axis:i});
+  });
+
+  // Connection arcs between major cities
+  const arcMat = new THREE.LineBasicMaterial({color:0x30d158, transparent:true, opacity:0.12});
+  const arcPairs = [[0,4],[4,7],[7,11],[11,13],[13,14],[14,16],[16,17],[17,19],[19,21],[21,22],[22,23],[23,24],[24,25],[25,27],[27,28],[28,30],[30,31],[31,33],[33,35],[35,36]];
+  arcPairs.forEach(([a,b])=>{
+    const ca=cities[a], cb=cities[b];
+    const pa=latLonToVec3(ca.lat, ca.lon, 1.01);
+    const pb=latLonToVec3(cb.lat, cb.lon, 1.01);
+    const mid=pa.clone().add(pb).multiplyScalar(0.5).normalize().multiplyScalar(1.01 + 0.08 + Math.random()*0.06);
+    const curve=new THREE.QuadraticBezierCurve3(pa, mid, pb);
+    const pts=curve.getPoints(20);
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    scene.add(new THREE.Line(geo, arcMat));
+  });
+
+  // Hotspot markers
+  const hotspotMarkers = [];
+  const hotspots = [
+    {lat:50.4,lon:30.5,color:'#ff453a'},{lat:31.7,lon:35.2,color:'#ff453a'},
+    {lat:23.5,lon:121,color:'#ff9f0a'},{lat:-23.5,lon:-46.6,color:'#30d158'},
+  ];
+
+  function latLonToVec3(lat, lon, r){
+    const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+    return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+  }
+
+  hotspots.forEach(h=>{
+    const pos = latLonToVec3(h.lat, h.lon, 1.03);
+    const ringGeo = new THREE.RingGeometry(0.035, 0.05, 16);
+    const ringMat = new THREE.MeshBasicMaterial({color:new THREE.Color(h.color), transparent:true, opacity:0.85, side:THREE.DoubleSide});
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(pos);
+    scene.add(ring);
+    const dotGeo2 = new THREE.SphereGeometry(0.018, 8, 8);
+    const dotMat2 = new THREE.MeshBasicMaterial({color:new THREE.Color(h.color)});
+    const dot2 = new THREE.Mesh(dotGeo2, dotMat2);
+    dot2.position.copy(pos);
+    scene.add(dot2);
+    hotspotMarkers.push({ring, dot:dot2, color:h.color, pos:pos.clone()});
+  });
+
+  let isDragging = false, prevMouse = {x:0,y:0}, rotVel = {x:0,y:0}, autoRotate = true;
+  container.addEventListener('mousedown', e=>{isDragging=true; prevMouse={x:e.clientX,y:e.clientY}; autoRotate=false;});
+  container.addEventListener('mousemove', e=>{
+    if(!isDragging) return;
+    rotVel.y=(e.clientX-prevMouse.x)*0.005; rotVel.x=(e.clientY-prevMouse.y)*0.005;
+    prevMouse={x:e.clientX,y:e.clientY};
+  });
+  container.addEventListener('mouseup', ()=>{isDragging=false; setTimeout(()=>{autoRotate=true;},3000);});
+  container.addEventListener('mouseleave', ()=>{isDragging=false;});
+
+  function animate(){
+    requestAnimationFrame(animate);
+    const t=Date.now()/1000;
+    if(autoRotate){ globe.rotation.y+=0.003; nightMesh.rotation.y+=0.003; cloudMesh.rotation.y+=0.004; }
+    if(!isDragging){ rotVel.x*=0.95; rotVel.y*=0.95; }
+    globe.rotation.x+=rotVel.x; globe.rotation.y+=rotVel.y;
+    nightMesh.rotation.x=globe.rotation.x; nightMesh.rotation.y=globe.rotation.y;
+    cloudMesh.rotation.x=globe.rotation.x;
+    hotspotMarkers.forEach((m,i)=>{
+      const p=0.8+Math.sin(t*3+i)*0.2;
+      m.ring.scale.set(p,p,p); m.ring.material.opacity=0.4+Math.sin(t*3+i)*0.4;
+      m.ring.lookAt(camera.position); m.dot.lookAt(camera.position);
+    });
+    // Animate AI data rings
+    dataRingsMini.forEach(r=>{
+      if(r.axis===0) r.mesh.rotation.z += r.speed;
+      else if(r.axis===1) r.mesh.rotation.x += r.speed;
+      else r.mesh.rotation.y += r.speed;
+      r.mesh.material.opacity = 0.1 + Math.sin(t*2 + r.axis)*0.05;
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Resize observer to handle container size changes
+  const ro = new ResizeObserver(()=>{
+    const w2=container.clientWidth, h2=container.clientHeight;
+    if(w2>0 && h2>0){
+      renderer.setSize(w2,h2);
+      camera.aspect=w2/h2;
+      camera.updateProjectionMatrix();
+    }
+  });
+  ro.observe(container);
+
+  window.addEventListener('resize',()=>{
+    const w2=container.clientWidth, h2=container.clientHeight;
+    if(w2>0 && h2>0){
+      renderer.setSize(w2,h2);
+      camera.aspect=w2/h2;
+      camera.updateProjectionMatrix();
+    }
+  });
+})();
+
+// ── 3D GLOBE BIG (Three.js — interactive with Earth texture) ──
+let globeBigRunning = false;
+let globeBigScene, globeBigCamera, globeBigRenderer, globeBigGroup, globeBigNightMesh;
+let globeBigHotspotMarkers = [];
+let globeBigNewsData = [];
+let globeBigDrag = {active:false, prevX:0, prevY:0, velX:0, velY:0};
+let globeBigZoom = 3.5;
+let globeBigAutoRotate = true;
+let globeBigEarthMesh, globeBigSunLight;
+
+// Default event hotspots
+const DEFAULT_HOTSPOTS = [
+  {lat:50.4,lon:30.5,color:'#ff453a',category:'war',title:'Ucrânia: ataques em Kharkiv',body:'Forças russas intensificam bombardeios no leste.',region:'🇺🇦 Europa Oriental',time:'há 14 min'},
+  {lat:31.7,lon:35.2,color:'#ff453a',category:'alert',title:'Gaza: negociações de cessar-fogo',body:'Mediadores internacionais buscam acordo.',region:'🇵🇸 Oriente Médio',time:'há 32 min'},
+  {lat:23.5,lon:121,color:'#ff9f0a',category:'alert',title:'Terremoto no Japão',body:'Magnitude 6.2 atinge costa do Japão.',region:'🇯🇵 Ásia Oriental',time:'há 1h'},
+  {lat:-23.5,lon:-46.6,color:'#30d158',category:'market',title:'Bovespa em alta',body:'Índice Bovespa sobe 1.2% com otimismo.',region:'🇧🇷 Brasil',time:'há 2h'},
+  {lat:39.9,lon:116.4,color:'#0a84ff',category:'tech',title:'China: avanço em IA',body:'Novo modelo de IA supera benchmarks.',region:'🇳 China',time:'há 3h'},
+  {lat:51.5,lon:-0.1,color:'#bf5af2',category:'geo',title:'Londres: cúpula do G7',body:'Líderes discutem segurança global.',region:'🇧 Reino Unido',time:'há 4h'},
+  {lat:38.9,lon:-77,color:'#ff9f0a',category:'alert',title:'EUA: alerta de segurança',body:'Nível de alerta elevado em Washington.',region:'🇸 EUA',time:'há 5h'},
+  {lat:28.6,lon:77.2,color:'#30d158',category:'market',title:'Índia: crescimento econômico',body:'PIB cresce 7.2% no trimestre.',region:'🇮🇳 Índia',time:'há 6h'},
+];
+
+function updateGlobeHotspots(hotspots){
+  globeBigNewsData = hotspots || DEFAULT_HOTSPOTS;
+}
+
+function initGlobeBig(){
+  if(globeBigRunning) return;
+  globeBigRunning = true;
+
+  const wrap = document.querySelector('.globe-big-wrap');
+  const c = document.getElementById('globe-big-canvas');
+  if(!wrap || !c){
+    console.error('Globe big: wrap or canvas not found');
+    globeBigRunning = false;
+    return;
+  }
+
+  // Ensure container is visible and has dimensions
+  wrap.style.display = 'flex';
+  wrap.style.width = wrap.clientWidth + 'px';
+  wrap.style.height = wrap.clientHeight + 'px';
+  wrap.style.position = 'relative';
+
+  // Force layout recalculation
+  void wrap.offsetWidth;
+
+  const w = wrap.clientWidth || 480;
+  const h = wrap.clientHeight || 480;
+  const size = Math.min(w, h);
+  if(size < 50){
+    console.error('Globe big: container too small', size);
+    globeBigRunning = false;
+    return;
+  }
+
+  console.log('Globe big init:', size, 'x', size);
+
+  globeBigRenderer = new THREE.WebGLRenderer({canvas:c, antialias:true, alpha:true});
+  globeBigRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  globeBigRenderer.setSize(size, size);
+  globeBigRenderer.setClearColor(0x000000, 0);
+
+  globeBigScene = new THREE.Scene();
+  globeBigCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  globeBigCamera.position.z = globeBigZoom;
+
+  globeBigGroup = new THREE.Group();
+  globeBigScene.add(globeBigGroup);
+
+  // Load textures - high-res NASA Blue Marble
+  const textureLoader = new THREE.TextureLoader();
+  const earthTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg');
+  const bumpTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png');
+  const nightTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-night.jpg');
+  const waterTex = textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-water.png');
+
+  const earthGeo = new THREE.SphereGeometry(1.5, 128, 128);
+  const earthMat = new THREE.MeshPhongMaterial({
+    map: earthTex,
+    bumpMap: bumpTex,
+    bumpScale: 0.06,
+    specularMap: waterTex,
+    specular: new THREE.Color(0x222244),
+    shininess: 25
+  });
+  globeBigEarthMesh = new THREE.Mesh(earthGeo, earthMat);
+  globeBigGroup.add(globeBigEarthMesh);
+
+  const nightMat = new THREE.MeshBasicMaterial({map:nightTex, transparent:true, opacity:0.18, blending:THREE.AdditiveBlending});
+  globeBigNightMesh = new THREE.Mesh(new THREE.SphereGeometry(1.505, 128, 128), nightMat);
+  globeBigGroup.add(globeBigNightMesh);
+
+  // Cloud layer
+  const cloudTex = waterTex;
+  const cloudMat = new THREE.MeshBasicMaterial({map:cloudTex, transparent:true, opacity:0.08, blending:THREE.AdditiveBlending, depthWrite:false});
+  const cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(1.52, 64, 64), cloudMat);
+  globeBigGroup.add(cloudMesh);
+
+  // City dots
+  const cities = [
+    {lat:40.7,lon:-74},{lat:34,lon:-118},{lat:41.9,lon:-87.6},{lat:29.8,lon:-95.4},{lat:47.6,lon:-122.3},
+    {lat:51.5,lon:-0.1},{lat:48.9,lon:2.35},{lat:52.5,lon:13.4},{lat:41.9,lon:12.5},{lat:40.4,lon:-3.7},
+    {lat:55.75,lon:37.6},{lat:59.9,lon:30.3},{lat:35.7,lon:51.4},{lat:28.6,lon:77.2},{lat:19.1,lon:72.9},
+    {lat:39.9,lon:116.4},{lat:31.2,lon:121.5},{lat:35.7,lon:139.7},{lat:37.6,lon:127},{lat:25,lon:121.5},
+    {lat:1.3,lon:103.8},{lat:13.8,lon:100.5},{lat:-6.2,lon:106.8},{lat:14.6,lon:121},{lat:-33.9,lon:151.2},
+    {lat:-23.5,lon:-46.6},{lat:-22.9,lon:-43.2},{lat:19.4,lon:-99.1},{lat:-34.6,lon:-58.4},{lat:4.6,lon:-74.1},
+    {lat:-12,lon:-77},{lat:-33.4,lon:-70.6},{lat:6.5,lon:3.4},{lat:-1.3,lon:36.8},{lat:30,lon:31.2},
+    {lat:33.9,lon:-118.2},{lat:25.2,lon:55.3},{lat:24.5,lon:54.6},{lat:37.9,lon:23.7},{lat:59.3,lon:18.1},
+    {lat:60.2,lon:24.9},{lat:50.1,lon:14.4},{lat:48.2,lon:16.4},{lat:45.5,lon:-73.6},{lat:33.6,lon:-7.6},
+    {lat:36.8,lon:10.2},{lat:-33.9,lon:18.4},{lat:26.2,lon:50.6},{lat:41,lon:29},{lat:32.1,lon:34.8},
+  ];
+  const cityGeoBig = new THREE.BufferGeometry();
+  const cityPosBig = new Float32Array(cities.length*3);
+  cities.forEach((d,i)=>{
+    const phi=(90-d.lat)*Math.PI/180, theta=(d.lon+180)*Math.PI/180, r=1.52;
+    cityPosBig[i*3]=-r*Math.sin(phi)*Math.cos(theta);
+    cityPosBig[i*3+1]=r*Math.cos(phi);
+    cityPosBig[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
+  });
+  cityGeoBig.setAttribute('position', new THREE.BufferAttribute(cityPosBig, 3));
+  globeBigGroup.add(new THREE.Points(cityGeoBig, new THREE.PointsMaterial({color:0x6ec6ff, size:0.03, transparent:true, opacity:0.45})));
+
+  // AI Data rings
+  const bigDataRings = [];
+  const ringColorsBig = [0x30d158, 0x0a84ff, 0xbf5af2, 0xff9f0a];
+  ringColorsBig.forEach((col, i) => {
+    const ringGeo = new THREE.TorusGeometry(1.65 + i*0.1, 0.003, 8, 100);
+    const ringMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.12});
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI/2 + i*0.2;
+    ring.rotation.y = i*0.35;
+    globeBigGroup.add(ring);
+    bigDataRings.push({mesh:ring, speed:0.0008 + i*0.0004, axis:i});
+  });
+
+  // Connection arcs between major cities
+  const bigArcMat = new THREE.LineBasicMaterial({color:0x30d158, transparent:true, opacity:0.1});
+  const arcPairsBig = [[0,4],[4,7],[7,11],[11,13],[13,14],[14,16],[16,17],[17,19],[19,21],[21,22],[22,23],[23,24],[24,25],[25,27],[27,28],[28,30],[30,31],[31,33],[33,35],[35,36],[36,38],[38,40],[40,42],[42,44],[44,46]];
+  arcPairsBig.forEach(([a,b])=>{
+    if(a>=cities.length||b>=cities.length) return;
+    const ca=cities[a], cb=cities[b];
+    const pa=latLonToVec3Big(ca.lat, ca.lon, 1.52);
+    const pb=latLonToVec3Big(cb.lat, cb.lon, 1.52);
+    const mid=pa.clone().add(pb).multiplyScalar(0.5).normalize().multiplyScalar(1.52 + 0.12 + Math.random()*0.08);
+    const curve=new THREE.QuadraticBezierCurve3(pa, mid, pb);
+    const pts=curve.getPoints(24);
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    globeBigGroup.add(new THREE.Line(geo, bigArcMat));
+  });
+
+  // Particle field around globe (AI neural particles)
+  const particleCount = 300;
+  const particleGeo = new THREE.BufferGeometry();
+  const particlePositions = new Float32Array(particleCount * 3);
+  const particleSpeeds = [];
+  for(let i=0;i<particleCount;i++){
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    const r = 1.7 + Math.random() * 0.5;
+    particlePositions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+    particlePositions[i*3+1] = r * Math.cos(phi);
+    particlePositions[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
+    particleSpeeds.push(0.001 + Math.random() * 0.003);
+  }
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+  const particleMat = new THREE.PointsMaterial({color:0x000000, size:0.015, transparent:true, opacity:0.3});
+  const particleField = new THREE.Points(particleGeo, particleMat);
+  globeBigGroup.add(particleField);
+
+  // Atmosphere glow
+  const atmosGeo = new THREE.SphereGeometry(1.62, 32, 32);
+  const atmosMat = new THREE.ShaderMaterial({
+    vertexShader:`varying vec3 vNormal;void main(){vNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying vec3 vNormal;void main(){float intensity=pow(0.62-dot(vNormal,vec3(0,0,1)),2.5);gl_FragColor=vec4(0.25,0.55,1.0,1.0)*intensity*0.7;}`,
+    blending:THREE.AdditiveBlending, side:THREE.BackSide, transparent:true
+  });
+  globeBigGroup.add(new THREE.Mesh(atmosGeo, atmosMat));
+
+  // Lighting
+  globeBigSunLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  globeBigSunLight.position.set(5, 3, 5);
+  globeBigScene.add(globeBigSunLight);
+  globeBigScene.add(new THREE.AmbientLight(0x334466, 0.5));
+
+  // Stars
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(800*3);
+  for(let i=0;i<800;i++){
+    starPos[i*3]=(Math.random()-0.5)*30;
+    starPos[i*3+1]=(Math.random()-0.5)*30;
+    starPos[i*3+2]=-Math.random()*15-5;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  globeBigScene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:0.04, transparent:true, opacity:0.6})));
+
+  // Hotspot markers
+  function latLonToVec3Big(lat, lon, r){
+    const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+    return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+  }
+
+  globeBigHotspotMarkers = [];
+  const hotspots = globeBigNewsData.length > 0 ? globeBigNewsData : DEFAULT_HOTSPOTS;
+  console.log('Globe big hotspots:', hotspots.length);
+  hotspots.forEach((h,i)=>{
+    if(h.lat == null || h.lon == null) return;
+    const pos = latLonToVec3Big(h.lat, h.lon, 1.54);
+    const color = h.color || (h.category==='war'?'#ff453a':h.category==='alert'?'#ff9f0a':'#30d158');
+
+    const ringGeo = new THREE.RingGeometry(0.04, 0.06, 20);
+    const ringMat = new THREE.MeshBasicMaterial({color:new THREE.Color(color), transparent:true, opacity:0.9, side:THREE.DoubleSide});
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(pos);
+    globeBigGroup.add(ring);
+
+    const dotGeo = new THREE.SphereGeometry(0.02, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({color:new THREE.Color(color)});
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.copy(pos);
+    globeBigGroup.add(dot);
+
+    const beamGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.18, 6);
+    const beamMat = new THREE.MeshBasicMaterial({color:new THREE.Color(color), transparent:true, opacity:0.5});
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.copy(pos.clone().normalize().multiplyScalar(1.54 + 0.09));
+    globeBigGroup.add(beam);
+
+    globeBigHotspotMarkers.push({ring, dot, beam, pos:pos.clone(), data:h, color});
+  });
+
+  // Mouse interaction
+  const canvas = c;
+  canvas.addEventListener('mousedown', e=>{
+    globeBigDrag.active = true;
+    globeBigDrag.prevX = e.clientX;
+    globeBigDrag.prevY = e.clientY;
+    globeBigAutoRotate = false;
+    hideGlobeDetailPopup();
+  });
+  canvas.addEventListener('mousemove', e=>{
+    if(!globeBigDrag.active) return;
+    const dx = e.clientX - globeBigDrag.prevX;
+    const dy = e.clientY - globeBigDrag.prevY;
+    globeBigDrag.velY = dx * 0.004;
+    globeBigDrag.velX = dy * 0.004;
+    globeBigDrag.prevX = e.clientX;
+    globeBigDrag.prevY = e.clientY;
+  });
+  canvas.addEventListener('mouseup', ()=>{globeBigDrag.active=false; setTimeout(()=>{globeBigAutoRotate=true;},4000);});
+  canvas.addEventListener('mouseleave', ()=>{globeBigDrag.active=false;});
+  canvas.addEventListener('wheel', e=>{
+    e.preventDefault();
+    globeBigZoom += e.deltaY * 0.003;
+    globeBigZoom = Math.max(2.2, Math.min(6, globeBigZoom));
+    globeBigCamera.position.z = globeBigZoom;
+  }, {passive:false});
+
+  // Click detection
+  canvas.addEventListener('click', e=>{
+    const rect = canvas.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, globeBigCamera);
+
+    for(const m of globeBigHotspotMarkers){
+      const worldPos = m.pos.clone();
+      globeBigGroup.localToWorld(worldPos);
+      const dist = raycaster.ray.distanceToPoint(worldPos);
+      if(dist < 0.1){
+        showGlobeDetailPopup(m.data, e.clientX, e.clientY, rect);
+        return;
+      }
+    }
+    hideGlobeDetailPopup();
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    const t = Date.now()/1000;
+
+    if(globeBigAutoRotate){
+      globeBigGroup.rotation.y += 0.002;
+      globeBigNightMesh.rotation.y += 0.0005;
+      cloudMesh.rotation.y += 0.0008;
+    }
+
+    if(!globeBigDrag.active){
+      globeBigDrag.velX *= 0.95;
+      globeBigDrag.velY *= 0.95;
+    }
+    globeBigGroup.rotation.x += globeBigDrag.velX;
+    globeBigGroup.rotation.y += globeBigDrag.velY;
+    globeBigGroup.rotation.x = Math.max(-1.2, Math.min(1.2, globeBigGroup.rotation.x));
+
+    globeBigNightMesh.rotation.x = globeBigEarthMesh.rotation.x;
+    cloudMesh.rotation.x = globeBigEarthMesh.rotation.x;
+
+    // Animate hotspots
+    globeBigHotspotMarkers.forEach((m,i)=>{
+      const pulse = 0.7 + Math.sin(t*2.5+i*1.5)*0.3;
+      m.ring.scale.set(pulse, pulse, pulse);
+      m.ring.material.opacity = 0.3 + Math.sin(t*2.5+i*1.5)*0.6;
+      m.ring.lookAt(globeBigCamera.position);
+      m.dot.lookAt(globeBigCamera.position);
+      m.beam.material.opacity = 0.2 + Math.sin(t*3+i)*0.3;
+    });
+
+    // Animate AI data rings
+    bigDataRings.forEach(r=>{
+      if(r.axis===0) r.mesh.rotation.z += r.speed;
+      else if(r.axis===1) r.mesh.rotation.x += r.speed;
+      else if(r.axis===2) r.mesh.rotation.y += r.speed;
+      else { r.mesh.rotation.x += r.speed; r.mesh.rotation.z -= r.speed*0.5; }
+      r.mesh.material.opacity = 0.08 + Math.sin(t*1.5 + r.axis)*0.04;
+    });
+
+    // Animate neural particles
+    const positions = particleField.geometry.attributes.position.array;
+    for(let i=0;i<particleCount;i++){
+      const speed = particleSpeeds[i];
+      const x = positions[i*3], y = positions[i*3+1], z = positions[i*3+2];
+      const dist = Math.sqrt(x*x + y*y + z*z);
+      positions[i*3] += (Math.sin(t*speed + i)*0.001);
+      positions[i*3+1] += (Math.cos(t*speed + i*0.5)*0.001);
+      positions[i*3+2] += (Math.sin(t*speed*0.7 + i*0.3)*0.001);
+    }
+    particleField.geometry.attributes.position.needsUpdate = true;
+    particleMat.opacity = 0.2 + Math.sin(t*2)*0.1;
+
+    globeBigRenderer.render(globeBigScene, globeBigCamera);
+  }
+  animate();
+}
+
+// Detail popup
+function showGlobeDetailPopup(data, clientX, clientY, canvasRect){
+  const popup = document.getElementById('globe-detail-popup');
+  if(!popup) return;
+
+  const catLabel = {war:'Guerra',market:'Mercado',geo:'Geopolítica',alert:'Alerta',tech:'Tech',energy:'Energia',health:'Saúde',climate:'Clima'}[data.category] || data.category;
+  const catClass = data.category || 'geo';
+
+  popup.innerHTML = `
+    <button class="popup-close" onclick="hideGlobeDetailPopup()">✕</button>
+    <span class="popup-tag ${catClass}">${catLabel}</span>
+    <div class="popup-title">${data.title || data.label || 'Evento'}</div>
+    <div class="popup-body">${data.body || 'Informações detalhadas sobre este evento geopolítico.'}</div>
+    <div class="popup-footer">
+      <span>${data.region || ''}</span>
+      <span>${data.time || ''}</span>
+    </div>
+  `;
+
+  // Position popup near click
+  let left = clientX + 15;
+  let top = clientY - 20;
+  if(left + 280 > window.innerWidth) left = clientX - 295;
+  if(top + 200 > window.innerHeight) top = window.innerHeight - 210;
+  if(top < 10) top = 10;
+
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+  popup.style.display = 'block';
+}
+
+function hideGlobeDetailPopup(){
+  const popup = document.getElementById('globe-detail-popup');
+  if(popup) popup.style.display = 'none';
+}
+
+function openGlobe(){
+  const overlay = document.getElementById('globe-overlay');
+  overlay.classList.add('open');
+  // Force layout recalculation
+  void overlay.offsetWidth;
+  // Ensure hotspots are set before init
+  if(globeBigNewsData.length === 0) globeBigNewsData = DEFAULT_HOTSPOTS;
+  setTimeout(initGlobeBig, 100);
+}
+function closeGlobe(){
+  hideGlobeDetailPopup();
+  const overlay = document.getElementById('globe-overlay');
+  overlay.classList.remove('open');
+  globeBigRunning = false;
+  if(globeBigRenderer){
+    globeBigRenderer.dispose();
+    globeBigRenderer = null;
+  }
+  globeBigScene = null;
+  globeBigGroup = null;
+  globeBigEarthMesh = null;
+  globeBigNightMesh = null;
+  globeBigHotspotMarkers = [];
+}
+function handleOverlayClick(e){
+  if(e.target === document.getElementById('globe-overlay')){
+    hideGlobeDetailPopup();
+    closeGlobe();
+  }
+}
+
+// News filter
+let currentNewsFilter = 'all';
+let currentNewsSearch = '';
+function filterNews(category, el){
+  currentNewsFilter = category;
+  document.querySelectorAll('.intel-filter-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  applyNewsFilters();
+}
+function searchNews(query){
+  currentNewsSearch = query.toLowerCase();
+  applyNewsFilters();
+}
+function applyNewsFilters(){
+  const cards = document.querySelectorAll('.intel-card[data-category]');
+  cards.forEach(card=>{
+    const cat = card.dataset.category;
+    const title = (card.dataset.title || '').toLowerCase();
+    const body = (card.dataset.body || '').toLowerCase();
+    const region = (card.dataset.region || '').toLowerCase();
+    const matchCat = currentNewsFilter === 'all' || cat === currentNewsFilter;
+    const matchSearch = !currentNewsSearch || title.includes(currentNewsSearch) || body.includes(currentNewsSearch) || region.includes(currentNewsSearch);
+    card.style.display = (matchCat && matchSearch) ? '' : 'none';
+  });
+}
+
+</script>
+
+<!-- GLOBE OVERLAY -->
+<div id="globe-overlay" onclick="handleOverlayClick(event)">
+  <div class="globe-overlay-inner">
+    <div class="globe-big-wrap">
+      <canvas id="globe-big-canvas"></canvas>
+      <button class="globe-close" onclick="closeGlobe()">✕</button>
+      <div class="globe-hint">🖱 Arrastar para girar · Scroll para zoom · Clique nos pontos para detalhes</div>
+      <div id="globe-detail-popup"></div>
+    </div>
+    <div class="globe-intel-panel">
+      <div>
+        <div class="intel-header">Inteligência Global · Tempo real</div>
+        <div class="intel-title">Monitor de Eventos<br>Geopolíticos</div>
+        <div class="intel-sub">Atualizado agora · 3 alertas críticos</div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="intel-filter-tabs">
+        <div class="intel-filter-tab active" onclick="filterNews('all',this)">Todos<span class="tab-count">10</span></div>
+        <div class="intel-filter-tab" onclick="filterNews('war',this)">Conflitos<span class="tab-count">3</span></div>
+        <div class="intel-filter-tab" onclick="filterNews('market',this)">Mercados<span class="tab-count">2</span></div>
+        <div class="intel-filter-tab" onclick="filterNews('tech',this)">Tech<span class="tab-count">2</span></div>
+        <div class="intel-filter-tab" onclick="filterNews('health',this)">Saúde<span class="tab-count">1</span></div>
+        <div class="intel-filter-tab" onclick="filterNews('climate',this)">Clima<span class="tab-count">1</span></div>
+        <div class="intel-filter-tab" onclick="filterNews('energy',this)">Energia<span class="tab-count">1</span></div>
+      </div>
+
+      <!-- Search -->
+      <div class="intel-search">
+        <span class="intel-search-icon">🔍</span>
+        <input type="text" placeholder="Buscar eventos, regiões..." oninput="searchNews(this.value)"/>
+      </div>
+
+      <!-- Summary stats -->
+      <div class="intel-stats">
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--red);">3</div>
+          <div class="intel-stat-label">Conflitos</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--orange);">2</div>
+          <div class="intel-stat-label">Alertas</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--blue);">6</div>
+          <div class="intel-stat-label">Mercados</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--green);">4</div>
+          <div class="intel-stat-label">Regiões</div>
+        </div>
+      </div>
+
+      <div class="intel-divider">Conflitos & Segurança</div>
+
+      <div class="intel-card" data-category="war" data-title="Ucrânia: novos ataques reportados na região de Kharkiv" data-body="Forças russas intensificaram bombardeios na região norte. OTAN monitora movimentação de tropas na fronteira bielorrussa." data-region="Europa Oriental">
+        <div class="intel-card-top">
+          <span class="intel-card-tag war">Guerra</span>
+          <div class="intel-card-headline">Ucrânia: novos ataques reportados na região de Kharkiv</div>
+        </div>
+        <div class="intel-card-body">Forças russas intensificaram bombardeios na região norte. OTAN monitora movimentação de tropas na fronteira bielorrussa.</div>
+        <div class="intel-card-footer"><span class="intel-card-region">🇺🇦 Europa Oriental</span><span class="intel-card-time">há 14 min</span></div>
+      </div>
+
+      <div class="intel-card" data-category="war" data-title="Gaza: negociações de cessar-fogo em colapso" data-body="Mediadores do Catar reportam impasse. EUA reposicionam porta-aviões USS Gerald Ford no Mediterrâneo." data-region="Oriente Médio">
+        <div class="intel-card-top">
+          <span class="intel-card-tag war">Conflito</span>
+          <div class="intel-card-headline">Gaza: negociações de cessar-fogo em colapso</div>
+        </div>
+        <div class="intel-card-body">Mediadores do Catar reportam impasse. EUA reposicionam porta-aviões USS Gerald Ford no Mediterrâneo.</div>
+        <div class="intel-card-footer"><span class="intel-card-region">🇵🇸 Oriente Médio</span><span class="intel-card-time">há 32 min</span></div>
+      </div>
+
+      <div class="intel-card">
+        <div class="intel-card-top">
+          <span class="intel-card-tag market">Mercado</span>
+          <div class="intel-card-headline">FED sinaliza manutenção de juros — dólar recua globalmente</div>
+        </div>
+        <div class="intel-card-body">Jerome Powell afirmou que cortes de juros dependem de dados de inflação. Mercados emergentes se valorizam.</div>
+        <div class="intel-card-footer"><span class="intel-card-region">🇺🇸 EUA</span><span class="intel-card-time">há 1h</span></div>
+      </div>
+
+      <div class="intel-divider">Geopolítica</div>
+
+      <div class="intel-card">
+        <div class="intel-card-top">
+          <span class="intel-card-tag geo">Geopolítica</span>
+          <div class="intel-card-headline">China e Taiwan: tensão no Estreito com exercícios navais</div>
+        </div>
+        <div class="intel-card-body">Marinha chinesa realizou simulação de bloqueio. Japão e Coreia do Sul ativam protocolos de alerta.</div>
+        <div class="intel-card-footer"><span class="intel-card-region">🇨🇳 Indo-Pacífico</span><span class="intel-card-time">há 2h</span></div>
+      </div>
+
+      <div class="intel-card">
+        <div class="intel-card-top">
+          <span class="intel-card-tag alert">Alerta</span>
+          <div class="intel-card-headline">Eleições no México: resultado confirma Claudia Sheinbaum</div>
+        </div>
+        <div class="intel-card-body">Primeira mulher eleita presidente do México. Mercados reagiram com volatilidade moderada. Relação EUA-México em foco.</div>
+        <div class="intel-card-footer"><span class="intel-card-region">🇲🇽 América Latina</span><span class="intel-card-time">há 3h</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

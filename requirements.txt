@@ -160,3 +160,5 @@ xlsxwriter==3.2.9
 xxhash==3.7.0
 yarl==1.23.0
 youtube-transcript-api==1.2.4
+chromadb>=1.10.0
+psutil>=7.0.0

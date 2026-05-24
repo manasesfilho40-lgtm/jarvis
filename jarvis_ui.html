@@ -5,49 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JARVIS — MARK XXXIX</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="three.min.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  --bg: #0a0a0f;
-  --bg-secondary: #111118;
-  --card: rgba(255,255,255,0.04);
-  --card-hover: rgba(255,255,255,0.07);
-  --card-border: rgba(255,255,255,0.06);
-  --card-border-hover: rgba(255,255,255,0.12);
+  --bg: #06060a;
+  --bg-secondary: #0c0c12;
+  --card: rgba(255, 255, 255, 0.03);
+  --card-hover: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-border-hover: rgba(255, 255, 255, 0.15);
   --text-primary: #f5f5f7;
-  --text-secondary: rgba(245,245,247,0.6);
-  --text-tertiary: rgba(245,245,247,0.35);
+  --text-secondary: rgba(245, 245, 247, 0.65);
+  --text-tertiary: rgba(245, 245, 247, 0.35);
+  
   --green: #30d158;
-  --green-soft: rgba(48,209,88,0.15);
+  --green-soft: rgba(48, 209, 88, 0.1);
   --blue: #0a84ff;
-  --blue-soft: rgba(10,132,255,0.15);
+  --blue-soft: rgba(10, 132, 255, 0.1);
   --orange: #ff9f0a;
-  --orange-soft: rgba(255,159,10,0.15);
+  --orange-soft: rgba(255, 159, 10, 0.1);
   --red: #ff453a;
-  --red-soft: rgba(255,69,58,0.15);
+  --red-soft: rgba(255, 69, 58, 0.1);
   --purple: #bf5af2;
-  --purple-soft: rgba(191,90,242,0.15);
+  --purple-soft: rgba(191, 90, 242, 0.1);
   --teal: #64d2ff;
-  --teal-soft: rgba(100,210,255,0.15);
+  --teal-soft: rgba(100, 210, 255, 0.1);
   --pink: #ff375f;
-  --pink-soft: rgba(255,55,95,0.15);
+  --pink-soft: rgba(255, 55, 95, 0.1);
+  
   --r-sm: 14px;
   --r-md: 18px;
   --r-lg: 24px;
   --r-xl: 32px;
   --r-2xl: 40px;
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-sm: 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.6);
   --glass: blur(20px);
-  --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 20%, rgba(10, 132, 255, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 80%, rgba(191, 90, 242, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(48, 209, 88, 0.03) 0%, transparent 60%),
+    var(--bg);
+  background-size: 140% 140%, 140% 140%, 140% 140%, auto;
   color: var(--text-primary);
   height: 100vh;
   overflow: hidden;
@@ -55,15 +62,37 @@ body {
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  animation: bg-drift 25s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 130% 40% at 50% 100%, rgba(10, 132, 255, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 110% 30% at 70% 100%, rgba(100, 210, 255, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 150% 25% at 20% 100%, rgba(191, 90, 242, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 90% 20% at 60% 100%, rgba(48, 209, 88, 0.03) 0%, transparent 50%);
+  background-size: 100% 300%, 100% 300%, 100% 300%, 100% 300%;
+  pointer-events: none;
+  z-index: 0;
+  animation:
+    wave-1 8s cubic-bezier(0.4, 0, 0.6, 1) infinite,
+    wave-2 11s cubic-bezier(0.35, 0, 0.65, 1) infinite,
+    wave-3 9s cubic-bezier(0.45, 0, 0.55, 1) infinite,
+    wave-4 13s cubic-bezier(0.38, 0, 0.62, 1) infinite;
 }
 
 /* ── TOPBAR ── */
 .topbar {
   height: 56px;
-  background: rgba(17,17,24,0.8);
+  background: rgba(12, 12, 18, 0.6);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border-bottom: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -71,23 +100,54 @@ body {
   flex-shrink: 0;
   margin: 0 12px;
   border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: inset 0 1px 0px rgba(255, 255, 255, 0.05), var(--shadow-sm);
+  position: relative;
+  z-index: 2;
 }
 .tb-logo { font-size: 17px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; }
 .tb-sub { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-top: 1px; }
 .tb-pills { display: flex; gap: 10px; margin-left: 20px; }
+
 .tb-pill {
   padding: 6px 14px; border-radius: 100px;
-  font-size: 12px; font-weight: 500;
-  background: var(--card); color: var(--text-secondary);
+  font-size: 11px; font-weight: 600;
+  background: rgba(255, 255, 255, 0.02); color: var(--text-secondary);
   display: flex; align-items: center; gap: 7px;
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   transition: var(--transition);
 }
-.tb-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
-.tb-pill.active { background: var(--green-soft); color: var(--green); border-color: rgba(48,209,88,0.2); }
-.tb-pill.active .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.tb-pill.warn { background: var(--orange-soft); color: var(--orange); border-color: rgba(255,159,10,0.2); }
-.tb-pill.warn .dot { background: var(--orange); }
+.tb-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.tb-pill.active { 
+  background: var(--green-soft); 
+  color: var(--green); 
+  border-color: rgba(48, 209, 88, 0.4); 
+  box-shadow: 0 0 16px rgba(48, 209, 88, 0.25), inset 0 0 8px rgba(48, 209, 88, 0.05);
+}
+.tb-pill.active .dot { background: var(--green); box-shadow: 0 0 10px var(--green), 0 0 20px rgba(48, 209, 88, 0.3); }
+
+.tb-pill.warn { 
+  background: var(--orange-soft); 
+  color: var(--orange); 
+  border-color: rgba(255, 159, 10, 0.4); 
+  box-shadow: 0 0 16px rgba(255, 159, 10, 0.25), inset 0 0 8px rgba(255, 159, 10, 0.05);
+}
+.tb-pill.warn .dot { background: var(--orange); box-shadow: 0 0 10px var(--orange), 0 0 20px rgba(255, 159, 10, 0.3); }
+.tb-select-wrap { position:relative; display:inline-flex; align-items:center; }
+.tb-select-wrap select {
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  background:rgba(255, 255, 255, 0.03); color:var(--text-primary);
+  border:1px solid rgba(255, 255, 255, 0.06); border-radius:100px;
+  border-top-color: rgba(255,255,255,0.14);
+  border-bottom-color: rgba(255,255,255,0.02);
+  padding:6px 32px 6px 14px; font-size:12px; font-weight:500;
+  font-family:'Inter',sans-serif; cursor:pointer;
+  outline:none; transition:var(--transition);
+  min-width:110px;
+}
+.tb-select-wrap select:hover { border-color:rgba(255,255,255,0.12); background:rgba(255,255,255,0.06); }
+.tb-select-wrap select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(10,132,255,0.15), 0 0 12px rgba(10,132,255,0.1); }
+.tb-select-arrow { position:absolute; right:12px; width:10px; height:6px; color:var(--text-secondary); pointer-events:none; }
 .tb-time {
   margin-left: auto;
   font-size: 14px; font-weight: 500; color: var(--text-primary);
@@ -104,6 +164,8 @@ body {
   padding: 12px;
   overflow: hidden;
   min-height: 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── SIDEBAR ── */
@@ -120,20 +182,24 @@ body {
 .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 
 .s-card {
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   border-radius: var(--r-xl);
   padding: 20px;
   transition: var(--transition);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.03), var(--shadow-sm);
 }
 .s-card:hover {
-  background: var(--card-hover);
-  border-color: var(--card-border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.22);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), var(--shadow-md);
 }
 .s-label {
   font-size: 11px; font-weight: 600; color: var(--text-tertiary);
@@ -151,6 +217,7 @@ body {
   width: 34px; height: 34px; border-radius: var(--r-sm);
   background: var(--card);
   border: 1px solid var(--card-border);
+  border-top-color: rgba(255,255,255,0.1);
   display: flex; align-items: center; justify-content: center;
   font-size: 15px;
   transition: var(--transition);
@@ -170,8 +237,8 @@ body {
   flex-shrink: 0; border: none; outline: none;
 }
 .toggle:hover { background: rgba(255,255,255,0.18); }
-.toggle.on { background: var(--green); }
-.toggle.blue.on { background: var(--blue); }
+.toggle.on { background: var(--green); box-shadow: 0 0 10px rgba(48,209,88,0.4); }
+.toggle.blue.on { background: var(--blue); box-shadow: 0 0 10px rgba(10,132,255,0.4); }
 .toggle::after {
   content: ''; position: absolute;
   width: 20px; height: 20px; border-radius: 50%;
@@ -187,11 +254,14 @@ body {
   background: var(--card); border-radius: var(--r-md);
   padding: 14px 16px;
   border: 1px solid var(--card-border);
+  border-top-color: rgba(255,255,255,0.1);
   transition: var(--transition);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.02);
 }
 .s-num:hover {
   background: var(--card-hover);
   border-color: var(--card-border-hover);
+  border-top-color: rgba(255,255,255,0.15);
   transform: translateY(-1px);
 }
 .s-num-val { font-size: 24px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px; }
@@ -200,33 +270,23 @@ body {
 /* ── CENTER ── */
 .center { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
 
-/* Orb card */
 .orb-card {
   background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   border-radius: var(--r-2xl);
   display: flex;
   gap: 0;
   overflow: hidden;
   flex-shrink: 0;
   height: 280px;
-  box-shadow: var(--shadow-md);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04), var(--shadow-md);
   transition: var(--transition);
   position: relative;
-}
-.orb-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: var(--r-2xl);
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(255,255,255,0.03) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
 }
 .orb-left {
   flex: 1;
@@ -262,20 +322,27 @@ body {
   gap: 12px;
   min-width: 0;
 }
+
 .orb-state {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 14px; border-radius: 100px;
-  background: var(--card);
-  border: 1px solid var(--card-border);
+  background: var(--green-soft);
+  color: var(--green);
+  border: 1px solid rgba(48, 209, 88, 0.35);
+  box-shadow: 0 0 16px rgba(48, 209, 88, 0.2), inset 0 0 8px rgba(48, 209, 88, 0.05);
   align-self: flex-start;
   transition: var(--transition);
+  font-size: 11px;
+  font-weight: 600;
 }
 .orb-state:hover {
-  background: var(--card-hover);
-  border-color: var(--card-border-hover);
+  background: rgba(48, 209, 88, 0.18);
+  border-color: rgba(48, 209, 88, 0.5);
+  box-shadow: 0 0 24px rgba(48, 209, 88, 0.35), inset 0 0 8px rgba(48, 209, 88, 0.05);
 }
-.orb-state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); flex-shrink: 0; }
-.orb-state-text { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.orb-state-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green), 0 0 20px rgba(48, 209, 88, 0.3); flex-shrink: 0; }
+.orb-state-text { font-size: 12px; font-weight: 500; color: inherit; }
+
 .orb-cmd {
   font-size: 13px; font-style: italic;
   color: var(--text-secondary); line-height: 1.4;
@@ -286,49 +353,61 @@ body {
 }
 .orb-cmd-time { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
 
-.orb-bottom-row {
-  display: flex; align-items: center; gap: 10px;
-}
+.orb-bottom-row { display: flex; align-items: center; gap: 10px; }
+
 .orb-mic-btn {
   width: 38px; height: 38px; border-radius: 50%;
   background: var(--card); border: 1px solid var(--card-border); cursor: pointer;
+  border-top-color: rgba(255,255,255,0.12);
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; flex-shrink: 0;
   transition: var(--transition);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.02);
 }
-.orb-mic-btn:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
-.orb-mic-btn.speaking { background: var(--green-soft); border-color: rgba(48,209,88,0.2); }
+.orb-mic-btn:hover { 
+  background: var(--card-hover); border-color: var(--card-border-hover); border-top-color: rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
+.orb-mic-btn.speaking { 
+  background: var(--green-soft); border-color: rgba(48,209,88,0.4); 
+  color: var(--green); box-shadow: 0 0 12px rgba(48,209,88,0.2);
+}
+
 .orb-speak-bar {
   flex: 1; display: flex; align-items: center;
   background: var(--card); border: 1px solid var(--card-border);
+  border-top-color: rgba(255,255,255,0.1);
   border-radius: 100px; padding: 0 14px; height: 38px;
   transition: var(--transition);
 }
 .orb-speak-bar:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
 #speak-btn-text {
   font-size: 12px; color: var(--text-secondary); font-weight: 400; white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: hidden; text-overflow: ellipsis;
 }
 
 /* Tabs area */
 .tabs-wrap {
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   border-radius: var(--r-xl);
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.03), var(--shadow-sm);
   transition: var(--transition);
 }
 .tabs-wrap:hover {
-  border-color: var(--card-border-hover);
-  box-shadow: var(--shadow-md);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.04), var(--shadow-md);
 }
 .tabs { display: flex; padding: 14px 18px 0; gap: 6px; flex-shrink: 0; }
 .tab {
@@ -338,11 +417,12 @@ body {
   transition: var(--transition);
 }
 .tab:hover { color: var(--text-secondary); }
-.tab.active { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.tab.active { background: rgba(255,255,255,0.05); color: var(--text-primary); border-top: 1px solid rgba(255,255,255,0.1); }
 .tab-badge {
   background: var(--green-soft); color: var(--green);
   font-size: 10px; padding: 2px 7px; border-radius: 100px;
-  margin-left: 6px; font-weight: 600;
+  margin-left: 6px; font-weight: 600; border: 1px solid rgba(48,209,88,0.3);
+  box-shadow: 0 0 8px rgba(48,209,88,0.15);
 }
 .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
 .tab-content.active { display: flex; }
@@ -361,10 +441,10 @@ body {
   border-color: var(--card-border);
 }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
-.log-entry.jarvis { background: var(--card); }
-.log-entry.user { background: var(--green-soft); border-color: rgba(48,209,88,0.1); }
-.log-entry.sys { background: var(--orange-soft); border-color: rgba(255,159,10,0.1); }
-.log-entry.err { background: var(--red-soft); border-color: rgba(255,69,58,0.1); }
+.log-entry.jarvis { background: var(--card); border-top-color: rgba(255,255,255,0.05); }
+.log-entry.user { background: var(--green-soft); border-color: rgba(48,209,88,0.15); }
+.log-entry.sys { background: var(--orange-soft); border-color: rgba(255,159,10,0.15); }
+.log-entry.err { background: var(--red-soft); border-color: rgba(255,69,58,0.15); }
 .log-role {
   font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
   white-space: nowrap; margin-top: 2px;
@@ -377,7 +457,7 @@ body {
 .log-text { font-size: 13px; color: var(--text-primary); line-height: 1.6; }
 .log-time { font-size: 10px; color: var(--text-tertiary); margin-left: auto; white-space: nowrap; flex-shrink: 0; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
-/* Leads */
+/* Leads Area */
 .leads-wrap { flex: 1; overflow-y: auto; padding: 16px 20px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
 .leads-empty { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 13px; }
 .lead-item {
@@ -388,29 +468,41 @@ body {
 .lead-item:hover { padding-left: 4px; }
 .lead-avatar {
   width: 38px; height: 38px; border-radius: var(--r-sm);
-  background: var(--card);
-  border: 1px solid var(--card-border);
+  background: var(--card); border: 1px solid var(--card-border);
+  border-top-color: rgba(255,255,255,0.1);
   display: flex; align-items: center; justify-content: center;
   font-size: 15px; font-weight: 600; color: var(--text-secondary);
-  flex-shrink: 0;
-  transition: var(--transition);
+  flex-shrink: 0; transition: var(--transition);
 }
-.lead-item:hover .lead-avatar {
-  background: var(--card-hover);
-  border-color: var(--card-border-hover);
-}
+.lead-item:hover .lead-avatar { background: var(--card-hover); border-color: var(--card-border-hover); }
 .lead-info { flex: 1; min-width: 0; }
 .lead-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lead-phone { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
-.lead-tag {
-  padding: 4px 10px; border-radius: 100px; font-size: 10px; font-weight: 600;
-  flex-shrink: 0;
-}
-.lead-tag.new { background: var(--green-soft); color: var(--green); }
-.lead-tag.contacted { background: var(--blue-soft); color: var(--blue); }
-.lead-tag.replied { background: var(--orange-soft); color: var(--orange); }
 
-/* Input */
+.lead-tag {
+  padding: 4px 12px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.lead-tag.new { 
+  background: rgba(48, 209, 88, 0.1); 
+  color: var(--green); 
+  border: 1px solid rgba(48, 209, 88, 0.3);
+  box-shadow: 0 0 10px rgba(48, 209, 88, 0.15);
+}
+.lead-tag.contacted { 
+  background: rgba(10, 132, 255, 0.1); 
+  color: var(--blue); 
+  border: 1px solid rgba(10, 132, 255, 0.3);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.15);
+}
+.lead-tag.replied { 
+  background: rgba(255, 159, 10, 0.1); 
+  color: var(--orange); 
+  border: 1px solid rgba(255, 159, 10, 0.3);
+  box-shadow: 0 0 10px rgba(255, 159, 10, 0.15);
+}
+
+/* Input Area */
 .input-area {
   padding: 14px 18px;
   display: flex; gap: 10px;
@@ -420,97 +512,115 @@ body {
 .cmd-input {
   flex: 1; padding: 12px 18px;
   border-radius: 100px;
-  border: 1.5px solid var(--card-border);
+  border: 1px solid var(--card-border);
   background: var(--card);
   font-family: 'Inter', sans-serif;
   font-size: 13px; color: var(--text-primary);
   outline: none; transition: var(--transition);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
 }
-.cmd-input:focus { border-color: var(--blue); background: rgba(10,132,255,0.05); }
+.cmd-input:focus { border-color: var(--blue); background: rgba(10,132,255,0.04); box-shadow: 0 0 10px rgba(10,132,255,0.15); }
 .cmd-input::placeholder { color: var(--text-tertiary); }
+
 .cmd-send {
   width: 42px; height: 42px; border-radius: 50%;
   background: var(--blue); border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 14px;
   flex-shrink: 0; transition: var(--transition);
-  box-shadow: 0 2px 8px rgba(10,132,255,0.3);
+  box-shadow: 0 0 12px rgba(10,132,255,0.4);
 }
-.cmd-send:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(10,132,255,0.4); }
-.cmd-send:active { transform: scale(0.95); }
+.cmd-send:hover { transform: scale(1.04); box-shadow: 0 0 20px rgba(10,132,255,0.6); }
+.cmd-send:active { transform: scale(0.96); }
+
 .cmd-mic {
   width: 42px; height: 42px; border-radius: 50%;
   background: var(--card); border: 1px solid var(--card-border); cursor: pointer;
+  border-top-color: rgba(255,255,255,0.1);
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; flex-shrink: 0;
   transition: var(--transition);
 }
-.cmd-mic:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
-.cmd-mic.speaking { background: var(--green-soft); border-color: rgba(48,209,88,0.2); }
+.cmd-mic:hover { background: var(--card-hover); border-color: var(--card-border-hover); transform: translateY(-1px); }
+.cmd-mic.speaking { background: var(--green-soft); border-color: rgba(48,209,88,0.3); color: var(--green); box-shadow: 0 0 12px rgba(48,209,88,0.2); }
 
 /* ── RIGHT PANEL ── */
-.right { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+.right { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
 .right::-webkit-scrollbar { width: 4px; }
 .right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 
 .r-card {
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   border-radius: var(--r-xl);
   padding: 20px;
   transition: var(--transition);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.03), var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .r-card:hover {
-  background: var(--card-hover);
-  border-color: var(--card-border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.22);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.05), var(--shadow-md);
 }
 .r-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 16px; }
-.r-label.light { color: var(--text-secondary); }
 
 /* Activity bars */
 .act-bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; margin-bottom: 8px; }
 .act-bar { flex: 1; border-radius: 6px 6px 0 0; background: rgba(255,255,255,0.06); min-height: 4px; cursor: pointer; transition: var(--transition); }
-.act-bar:hover { background: var(--blue); transform: scaleY(1.05); transform-origin: bottom; }
-.act-bar.peak { background: var(--green); }
-.act-bar.hot { background: var(--orange); }
+.act-bar:hover { background: var(--blue); box-shadow: 0 0 8px var(--blue); transform: scaleY(1.05); transform-origin: bottom; }
+.act-bar.peak { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.act-bar.hot { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
 .act-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
 
 /* Health rows */
 .h-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
-.h-row + .h-row { border-top: 1px solid var(--card-border); }
+.h-row + .h-row { border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .h-left { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 400; color: var(--text-primary); }
 .h-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .h-dot.pulse { animation: pulse-green 2s infinite; }
-@keyframes pulse-green { 0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,0.4);} 50%{box-shadow:0 0 0 6px rgba(48,209,88,0);} }
+@keyframes pulse-green { 0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,0.6); background-color: var(--green);} 50%{box-shadow:0 0 0 8px rgba(48,209,88,0); background-color: var(--green);} }
 .h-val { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.h-val[data-status="online"] { color: var(--green); text-shadow: 0 0 8px rgba(48, 209, 88, 0.3); }
+.h-val[data-status="standby"] { color: var(--orange); text-shadow: 0 0 8px rgba(255, 159, 10, 0.3); }
+.h-val[data-status="pronto"] { color: var(--green); text-shadow: 0 0 8px rgba(48, 209, 88, 0.3); }
 
 /* Predict */
 .p-num { font-size: 36px; font-weight: 600; color: var(--text-primary); line-height: 1; letter-spacing: -1px; }
 .p-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
 .p-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 100px; overflow: hidden; margin: 12px 0 6px; }
-.p-fill { height: 100%; border-radius: 100px; background: var(--green); transition: width 1.5s ease; }
+.p-fill { height: 100%; border-radius: 100px; background: var(--green); box-shadow: 0 0 8px rgba(48,209,88,0.4); transition: width 1.5s ease; }
 .p-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); }
 
 /* Quick grid */
 .q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .q-btn {
   background: var(--card); border-radius: var(--r-md);
-  padding: 16px; cursor: pointer; border: 1px solid var(--card-border);
-  transition: var(--transition); text-align: left;
+  border: 1px solid var(--card-border); border-top-color: rgba(255,255,255,0.1);
+  padding: 16px; cursor: pointer; transition: var(--transition); text-align: left;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.02);
 }
-.q-btn:hover { background: var(--card-hover); border-color: var(--card-border-hover); transform: translateY(-1px); }
+.q-btn:hover { 
+  background: var(--card-hover); border-color: var(--card-border-hover); border-top-color: rgba(255,255,255,0.18);
+  transform: translateY(-1px); box-shadow: inset 0 1px 1px rgba(255,255,255,0.04), var(--shadow-sm);
+}
 .q-btn:active { transform: scale(0.98); }
 .q-icon { font-size: 22px; margin-bottom: 8px; }
 .q-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Dark card text */
 .dark-stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.dark-stat-row + .dark-stat-row { border-top: 1px solid var(--card-border); }
+.dark-stat-row + .dark-stat-row { border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .dark-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .dark-stat-text { font-size: 13px; color: var(--text-secondary); }
 .dark-stat-val { margin-left: auto; font-size: 12px; color: var(--text-tertiary); font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -518,7 +628,7 @@ body {
 /* ── BOTTOM ── */
 .bottombar {
   height: 32px;
-  background: rgba(17,17,24,0.8);
+  background: rgba(12, 12, 18, 0.6);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
   border-top: 1px solid var(--card-border);
@@ -529,16 +639,18 @@ body {
   margin: 0 12px;
 }
 .bb-item { font-size: 11px; color: var(--text-tertiary); display: flex; align-items: center; gap: 7px; font-weight: 400; }
-.bb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.bb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green), 0 0 20px rgba(48,209,88,0.25); }
 .bb-dot.pulse { animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+@keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 10px var(--green),0 0 20px rgba(48,209,88,0.25);} 50%{opacity:0.4;box-shadow:0 0 4px var(--green),0 0 8px rgba(48,209,88,0.1);} }
 
 /* ── GLOBE ── */
 .globe-mini-card {
   background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top-color: rgba(255,255,255,0.14);
+  border-bottom-color: rgba(255,255,255,0.02);
   border-radius: var(--r-xl);
   padding: 0;
   overflow: hidden;
@@ -547,11 +659,13 @@ body {
   height: 160px;
   transition: var(--transition);
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.04), var(--shadow-md);
+  width: 100%;
+  box-sizing: border-box;
 }
-.globe-mini-card:hover { transform: scale(1.02); border-color: var(--card-border-hover); box-shadow: var(--shadow-lg); }
+.globe-mini-card:hover { transform: scale(1.02); border-color: rgba(255,255,255,0.12); border-top-color: rgba(255,255,255,0.22); box-shadow: var(--shadow-lg); }
 .globe-mini-card:active { cursor: grabbing; transform: scale(0.98); }
-.globe-mini-canvas { width: 100%; height: 100%; display: block; }
+.globe-mini-canvas { width: 100%; height: 100%; display: block; max-width: 100%; }
 .globe-mini-label {
   position: absolute; bottom: 12px; left: 16px;
   font-size: 11px; font-weight: 600; letter-spacing: 1px;
@@ -568,7 +682,7 @@ body {
   background: var(--red);
   animation: pulse-red 1.5s infinite;
 }
-@keyframes pulse-red { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,69,58,0.4);} 50%{opacity:0.6;box-shadow:0 0 0 6px rgba(255,69,58,0);} }
+@keyframes pulse-red { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,69,58,0.5);} 50%{opacity:0.6;box-shadow:0 0 0 6px rgba(255,69,58,0);} }
 .globe-mini-pulse-txt { font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
 
 /* Threat level indicator */
@@ -580,11 +694,24 @@ body {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-.threat-badge.low { background: var(--green-soft); color: var(--green); border: 1px solid rgba(48,209,88,0.2); }
-.threat-badge.moderate { background: var(--orange-soft); color: var(--orange); border: 1px solid rgba(255,159,10,0.2); }
-.threat-badge.elevated { background: rgba(255,159,10,0.25); color: #ffb340; border: 1px solid rgba(255,159,10,0.3); }
-.threat-badge.high { background: var(--red-soft); color: var(--red); border: 1px solid rgba(255,69,58,0.2); }
-.threat-badge.critical { background: rgba(255,69,58,0.3); color: #ff6b6b; border: 1px solid rgba(255,69,58,0.4); animation: pulse-red 1s infinite; }
+.threat-badge.low { background: var(--green-soft); color: var(--green); border: 1px solid rgba(48,209,88,0.35); box-shadow: 0 0 10px rgba(48,209,88,0.15); }
+.threat-badge.moderate { background: var(--orange-soft); color: var(--orange); border: 1px solid rgba(255,159,10,0.35); box-shadow: 0 0 10px rgba(255,159,10,0.15); }
+.threat-badge.elevated { background: rgba(255,159,10,0.2); color: #ffb340; border: 1px solid rgba(255,159,10,0.4); box-shadow: 0 0 10px rgba(255,159,10,0.2); }
+.threat-badge.high { background: var(--red-soft); color: var(--red); border: 1px solid rgba(255,69,58,0.35); box-shadow: 0 0 10px rgba(255,69,58,0.15); }
+.threat-badge.critical { background: rgba(255,69,58,0.25); color: #ff6b6b; border: 1px solid rgba(255,69,58,0.4); box-shadow: 0 0 14px rgba(255,69,58,0.3); animation: pulse-red 1s infinite; }
+
+/* ── BACKGROUND GLOBE ── */
+#globe-bg {
+  position: fixed; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+  transition: opacity 0.8s ease;
+}
+#globe-bg canvas {
+  width: 100%; height: 100%;
+  display: block;
+}
 
 /* ── GLOBE OVERLAY ── */
 #globe-overlay {
@@ -599,46 +726,52 @@ body {
   -webkit-backdrop-filter: blur(0px);
 }
 #globe-overlay.open {
-  background: rgba(5,5,10,0.95);
+  background: rgba(4, 4, 6, 0.9);
   pointer-events: all;
   opacity: 1;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 .globe-overlay-inner {
   display: flex;
   flex-direction: row;
   gap: 20px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   transform: scale(0.3);
   transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
-  width: 90vw; max-width: 960px;
-  height: 75vh; max-height: 580px;
+  width: 90vw; max-width: 1100px;
+  height: 80vh; max-height: 700px;
   padding: 16px;
   box-sizing: border-box;
 }
 #globe-overlay.open .globe-overlay-inner { transform: scale(1); }
 
 .globe-big-wrap {
-  width: 420px; height: 420px;
+  width: min(420px, 45%);
+  aspect-ratio: 1;
+  max-height: 100%;
   flex-shrink: 0; position: relative;
   cursor: grab;
   border-radius: var(--r-2xl);
   overflow: hidden;
   border: 1px solid var(--card-border);
+  border-top-color: rgba(255,255,255,0.12);
   box-shadow: var(--shadow-lg);
 }
 .globe-big-wrap:active { cursor: grabbing; }
 #globe-big-canvas { width: 100%; height: 100%; display: block; }
 
 .globe-intel-panel {
-  width: 320px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 280px;
+  max-width: 500px;
+  flex-shrink: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
   height: 100%;
+  max-height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -652,6 +785,7 @@ body {
 .intel-card {
   background: var(--card);
   border: 1px solid var(--card-border);
+  border-top-color: rgba(255,255,255,0.1);
   border-radius: var(--r-lg);
   padding: 12px;
   flex-shrink: 0;
@@ -659,26 +793,29 @@ body {
   box-sizing: border-box;
   transition: var(--transition);
 }
-.intel-card:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
+.intel-card:hover { background: var(--card-hover); border-color: var(--card-border-hover); border-top-color: rgba(255,255,255,0.15); }
 .intel-card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+
 .intel-card-tag {
   display: inline-block; padding: 2px 8px; border-radius: 100px;
   font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
-  flex-shrink: 0;
+  flex-shrink: 0; border: 1px solid transparent;
 }
-.intel-card-tag.war { background: var(--red-soft); color: var(--red); }
-.intel-card-tag.market { background: var(--blue-soft); color: var(--blue); }
-.intel-card-tag.geo { background: var(--orange-soft); color: var(--orange); }
-.intel-card-tag.alert { background: var(--green-soft); color: var(--green); }
-.intel-card-tag.tech { background: var(--purple-soft); color: var(--purple); }
-.intel-card-tag.energy { background: rgba(255,159,10,0.15); color: #ffb340; }
-.intel-card-tag.health { background: var(--pink-soft); color: var(--pink); }
-.intel-card-tag.climate { background: var(--teal-soft); color: var(--teal); }
+.intel-card-tag.war { background: var(--red-soft); color: var(--red); border-color: rgba(255,69,58,0.25); }
+.intel-card-tag.market { background: var(--blue-soft); color: var(--blue); border-color: rgba(10,132,255,0.25); }
+.intel-card-tag.geo { background: var(--orange-soft); color: var(--orange); border-color: rgba(255,159,10,0.25); }
+.intel-card-tag.alert { background: var(--green-soft); color: var(--green); border-color: rgba(48,209,88,0.25); }
+.intel-card-tag.tech { background: var(--purple-soft); color: var(--purple); border-color: rgba(191,90,242,0.25); }
+.intel-card-tag.energy { background: rgba(255,159,10,0.15); color: #ffb340; border-color: rgba(255,159,10,0.3); }
+.intel-card-tag.health { background: var(--pink-soft); color: var(--pink); border-color: rgba(255,55,95,0.25); }
+.intel-card-tag.climate { background: var(--teal-soft); color: var(--teal); border-color: rgba(100,210,255,0.25); }
+
 .intel-card-headline { font-size: 12px; font-weight: 500; color: var(--text-primary); line-height: 1.3; flex: 1; }
 .intel-card-body { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px; }
 .intel-card-footer { display: flex; justify-content: space-between; margin-top: 8px; }
 .intel-card-region { font-size: 10px; color: var(--text-tertiary); }
 .intel-card-time { font-size: 10px; color: var(--text-tertiary); }
+.intel-card[data-lat]:not([data-lat=""]) { cursor: pointer; }
 
 .intel-divider {
   font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
@@ -687,28 +824,9 @@ body {
   flex-shrink: 0;
 }
 
-.intel-tickers {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  flex-shrink: 0;
-}
-.intel-ticker {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: var(--r-md);
-  padding: 8px;
-  text-align: center;
-}
-.intel-ticker-name { font-size: 9px; color: var(--text-tertiary); font-weight: 500; }
-.intel-ticker-val { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 2px 0; }
-.intel-ticker-delta { font-size: 10px; font-weight: 500; }
-.intel-ticker-delta.up { color: var(--green); }
-.intel-ticker-delta.down { color: var(--red); }
+.intel-tickers { display: none; }
+.intel-filter-tabs { display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0; }
 
-.intel-filter-tabs {
-  display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0;
-}
 .intel-filter-tab {
   padding: 4px 8px; border-radius: 100px;
   font-size: 9px; font-weight: 500; color: var(--text-tertiary);
@@ -717,40 +835,9 @@ body {
   display: flex; align-items: center; gap: 4px;
 }
 .intel-filter-tab:hover { color: var(--text-secondary); }
-.intel-filter-tab.active { color: var(--green); background: var(--green-soft); border-color: rgba(48,209,88,0.2); }
+.intel-filter-tab.active { color: var(--green); background: var(--green-soft); border-color: rgba(48,209,88,0.3); box-shadow: 0 0 8px rgba(48,209,88,0.15); }
 .tab-count { font-size: 8px; opacity: 0.7; }
 
-.intel-search {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--card); border: 1px solid var(--card-border);
-  border-radius: var(--r-md); padding: 6px 10px; flex-shrink: 0;
-}
-.intel-search-icon { font-size: 12px; opacity: 0.5; }
-.intel-search input {
-  flex: 1; background: none; border: none; outline: none;
-  color: var(--text-primary); font-size: 11px;
-}
-.intel-search input::placeholder { color: var(--text-tertiary); }
-
-.intel-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex-shrink: 0;
-}
-.intel-stat { text-align: center; }
-.intel-stat-val { font-size: 14px; font-weight: 600; }
-.intel-stat-label { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; }
-
-@media (max-width: 960px) {
-  .globe-overlay-inner { flex-direction: column; gap: 12px; height: 90vh; padding: 12px; }
-  .globe-big-wrap { width: 70vw; max-width: 280px; height: 70vw; max-height: 280px; }
-  .globe-intel-panel { width: 100%; max-width: 400px; max-height: 45vh; }
-}
-.intel-filter-tab.active { background: rgba(255,255,255,0.08); color: var(--text-primary); border-color: var(--card-border-hover); }
-.intel-filter-tab .tab-count {
-  font-size: 9px; background: rgba(255,255,255,0.1); padding: 1px 5px;
-  border-radius: 100px; margin-left: 4px;
-}
-
-/* News search */
 .intel-search {
   display: flex; align-items: center; gap: 8px;
   background: var(--card); border: 1px solid var(--card-border);
@@ -759,78 +846,57 @@ body {
 }
 .intel-search:focus-within { border-color: var(--blue); background: rgba(10,132,255,0.03); }
 .intel-search-icon { font-size: 14px; color: var(--text-tertiary); }
-.intel-search input {
-  flex: 1; background: none; border: none; outline: none;
-  font-size: 12px; color: var(--text-primary); font-family: 'Inter', sans-serif;
-}
+.intel-search input { flex: 1; background: none; border: none; outline: none; color: var(--text-primary); font-size: 11px; }
 .intel-search input::placeholder { color: var(--text-tertiary); }
 
-/* News summary stats */
-.intel-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
-}
-.intel-stat {
-  background: var(--card); border: 1px solid var(--card-border);
-  border-radius: var(--r-sm); padding: 10px 12px; text-align: center;
+.globe-close {
+  position: absolute; top: 8px; right: 8px; z-index: 10;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-secondary); font-size: 14px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: var(--transition);
 }
-.intel-stat:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
-.intel-stat-val { font-size: 18px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.5px; }
-.intel-stat-label { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-.intel-card {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: var(--r-lg); padding: 16px 18px;
-  cursor: pointer; transition: var(--transition);
-}
-.intel-card:hover { background: var(--card-hover); border-color: var(--card-border-hover); transform: translateY(-1px); }
-.intel-card-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
-.intel-card-tag {
-  padding: 3px 10px; border-radius: 100px;
-  font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
-  text-transform: uppercase; flex-shrink: 0;
-}
-.intel-card-tag.war { background: var(--red-soft); color: var(--red); }
-.intel-card-tag.market { background: var(--blue-soft); color: var(--blue); }
-.intel-card-tag.geo { background: var(--orange-soft); color: var(--orange); }
-.intel-card-tag.alert { background: var(--green-soft); color: var(--green); }
-.intel-card-tag.tech { background: var(--purple-soft); color: var(--purple); }
-.intel-card-tag.energy { background: rgba(255,159,10,0.15); color: #ffb340; }
-.intel-card-tag.health { background: var(--pink-soft); color: var(--pink); }
-.intel-card-tag.climate { background: var(--teal-soft); color: var(--teal); }
-.intel-card-headline { font-size: 14px; font-weight: 500; color: var(--text-primary); line-height: 1.4; flex: 1; letter-spacing: -0.1px; }
-.intel-card-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
-.intel-card-footer { display: flex; justify-content: space-between; margin-top: 10px; }
-.intel-card-region { font-size: 11px; color: var(--text-tertiary); }
-.intel-card-time { font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-
-.intel-divider {
-  font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
-  text-transform: uppercase; color: var(--text-tertiary);
-  display: flex; align-items: center; gap: 10px; margin: 6px 0;
-}
-.intel-divider::after { content: ''; flex: 1; height: 1px; background: var(--card-border); }
-
-.intel-tickers {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-}
-.intel-ticker {
-  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--r-md);
-  padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
-  transition: var(--transition);
-}
-.intel-ticker:hover { background: var(--card-hover); border-color: var(--card-border-hover); }
-.intel-ticker-name { font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.8px; text-transform: uppercase; font-weight: 600; }
-.intel-ticker-val { font-size: 16px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.3px; }
-.intel-ticker-delta { font-size: 11px; font-weight: 500; }
-.intel-ticker-delta.up { color: var(--green); }
-.intel-ticker-delta.down { color: var(--red); }
+.globe-close:hover { background: rgba(255,255,255,0.2); color: var(--text-primary); }
 
 /* ── ANIMATIONS ── */
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
 .s-card, .r-card, .orb-card, .globe-mini-card, .tabs-wrap {
   animation: fadeIn 0.4s ease backwards;
+}
+
+@keyframes bg-drift {
+  0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+  25% { background-position: 3% 2%, -2% 3%, 1% -1%, 0% 0%; }
+  50% { background-position: -2% 4%, 3% -1%, -1% 2%, 0% 0%; }
+  75% { background-position: 1% -2%, -2% 2%, 2% 1%, 0% 0%; }
+}
+
+@keyframes wave-1 {
+  0%, 100% { background-position: -2% 100%, 0% 100%, 0% 100%, 0% 100%; }
+  20% { background-position: 0% 92%, 0% 100%, 0% 100%, 0% 100%; }
+  40% { background-position: 1% 88%, 0% 100%, 0% 100%, 0% 100%; }
+  60% { background-position: -1% 85%, 0% 100%, 0% 100%, 0% 100%; }
+  80% { background-position: 0% 90%, 0% 100%, 0% 100%, 0% 100%; }
+}
+@keyframes wave-2 {
+  0%, 100% { background-position: 0% 100%, 3% 100%, 0% 100%, 0% 100%; }
+  25% { background-position: 0% 100%, 0% 90%, 0% 100%, 0% 100%; }
+  50% { background-position: 0% 100%, -2% 86%, 0% 100%, 0% 100%; }
+  75% { background-position: 0% 100%, 1% 92%, 0% 100%, 0% 100%; }
+}
+@keyframes wave-3 {
+  0%, 100% { background-position: 0% 100%, 0% 100%, -3% 100%, 0% 100%; }
+  30% { background-position: 0% 100%, 0% 100%, 0% 89%, 0% 100%; }
+  60% { background-position: 0% 100%, 0% 100%, 2% 84%, 0% 100%; }
+  90% { background-position: 0% 100%, 0% 100%, -1% 91%, 0% 100%; }
+}
+@keyframes wave-4 {
+  0%, 100% { background-position: 0% 100%, 0% 100%, 0% 100%, 1% 100%; }
+  20% { background-position: 0% 100%, 0% 100%, 0% 100%, -2% 93%; }
+  45% { background-position: 0% 100%, 0% 100%, 0% 100%, 0% 87%; }
+  70% { background-position: 0% 100%, 0% 100%, 0% 100%, 3% 90%; }
 }
 .s-card:nth-child(1) { animation-delay: 0.05s; }
 .s-card:nth-child(2) { animation-delay: 0.1s; }
@@ -841,7 +907,6 @@ body {
 .r-card:nth-child(4) { animation-delay: 0.2s; }
 .r-card:nth-child(5) { animation-delay: 0.25s; }
 .r-card:nth-child(6) { animation-delay: 0.3s; }
-
 </style>
 </head>
 <body>
@@ -853,12 +918,22 @@ body {
     <div class="tb-sub">Mark XXXIX · A.I. System</div>
   </div>
   <div class="tb-pills">
-    <div class="tb-pill active"><div class="dot"></div> Neural ativo</div>
-    <div class="tb-pill active"><div class="dot"></div> Gemini live</div>
+    <div class="tb-pill active" id="tb-model"><div class="dot"></div> <span id="tb-model-text">Gemini</span></div>
+    <div class="tb-select-wrap">
+      <select id="model-select" onchange="changeModel(this.value)">
+        <option value="gemini">Gemini (Nuvem)</option>
+        <option value="auto">Automático</option>
+        <option value="llama">Ollama (Local)</option>
+      </select>
+      <svg class="tb-select-arrow" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
     <div class="tb-pill warn" id="tb-wa"><div class="dot" style="background:var(--orange)"></div> WhatsApp standby</div>
   </div>
   <div class="tb-time" id="clock">--:--:--</div>
 </div>
+
+<!-- BACKGROUND GLOBE -->
+<div id="globe-bg"><canvas id="globe-bg-canvas"></canvas></div>
 
 <!-- MAIN -->
 <div class="main">
@@ -942,8 +1017,8 @@ body {
         <div class="orb-bars">
           <div class="obar-row"><span>Neural</span><span id="bar-neural-val">72%</span></div>
           <div class="obar-track"><div class="obar-fill" id="bar-neural" style="width:72%;background:var(--green)"></div></div>
-          <div class="obar-row" style="margin-top:8px"><span>API quota</span><span id="bar-api-val">38%</span></div>
-          <div class="obar-track"><div class="obar-fill" id="bar-api" style="width:38%;background:var(--blue)"></div></div>
+          <div class="obar-row" style="margin-top:8px"><span>API quota</span><span id="bar-api-val">0%</span></div>
+          <div class="obar-track"><div class="obar-fill" id="bar-api" style="width:0%;background:var(--blue)"></div></div>
         </div>
       </div>
 
@@ -1028,6 +1103,16 @@ body {
       </div>
     </div>
 
+    <!-- NEWS FEED (stacked cards, scrollable) -->
+    <div class="news-feed-container" id="news-feed-container" aria-label="Feed de notícias">
+      <!-- Populated dynamically by updateGeopoliticsNews(news) -->
+      <div class="intel-card">
+        <div class="intel-card-top"><span class="intel-card-tag market">Mercado</span><div class="intel-card-headline">Nenhuma notícia carregada</div></div>
+        <div class="intel-card-body">Clique em "Intel Global" para atualizar.</div>
+        <div class="intel-card-footer"><span class="intel-card-region"></span><span class="intel-card-time"></span></div>
+      </div>
+    </div>
+
     <div class="r-card">
       <div class="r-label">Atividade hoje</div>
       <div style="font-size:36px; font-weight:600; color:var(--text-primary); line-height:1; letter-spacing:-1px;" id="act-pct">0<span style="font-size:18px; font-weight:400; color:var(--text-tertiary);">%</span></div>
@@ -1038,9 +1123,9 @@ body {
 
     <div class="r-card">
       <div class="r-label">Saúde do sistema</div>
-      <div class="h-row"><div class="h-left"><div class="h-dot pulse" style="background:var(--green)"></div>Gemini API</div><div class="h-val">Online</div></div>
-      <div class="h-row"><div class="h-left"><div class="h-dot" id="h-wa-dot" style="background:var(--orange)"></div>WhatsApp Web</div><div class="h-val" id="h-wa-val">Standby</div></div>
-      <div class="h-row"><div class="h-left"><div class="h-dot pulse" style="background:var(--green)"></div>Apify client</div><div class="h-val">Pronto</div></div>
+      <div class="h-row"><div class="h-left"><div class="h-dot pulse" style="background:var(--green)"></div>Gemini API</div><div class="h-val" data-status="online">Online</div></div>
+      <div class="h-row"><div class="h-left"><div class="h-dot" id="h-wa-dot" style="background:var(--orange)"></div>WhatsApp Web</div><div class="h-val" id="h-wa-val" data-status="standby">Standby</div></div>
+      <div class="h-row"><div class="h-left"><div class="h-dot pulse" style="background:var(--green)"></div>Apify client</div><div class="h-val" data-status="pronto">Pronto</div></div>
       <div class="h-row"><div class="h-left"><div class="h-dot" style="background:var(--orange)"></div>Playwright</div><div class="h-val">Verificar</div></div>
     </div>
 
@@ -1079,7 +1164,7 @@ body {
     <div class="r-card">
       <div class="r-label">Status neural</div>
       <div style="display:flex; flex-direction:column; gap:2px;">
-        <div class="dark-stat-row"><div class="dark-dot" style="background:var(--green)"></div><span class="dark-stat-text">Gemini live</span><span class="dark-stat-val">42ms</span></div>
+        <div class="dark-stat-row"><div class="dark-dot" id="ds-model-dot" style="background:var(--green)"></div><span class="dark-stat-text" id="ds-model-text">Gemini</span><span class="dark-stat-val" id="ds-model-val">online</span></div>
         <div class="dark-stat-row"><div class="dark-dot" id="ds-wa" style="background:var(--orange)"></div><span class="dark-stat-text">WhatsApp</span><span class="dark-stat-val" id="ds-wa-val">Standby</span></div>
         <div class="dark-stat-row"><div class="dark-dot" style="background:var(--green)"></div><span class="dark-stat-text">Memória</span><span class="dark-stat-val">55%</span></div>
       </div>
@@ -1150,6 +1235,7 @@ function updateState(state){
     THINKING:{hud:'ANALISANDO',txt:'Analisando...',dot:'var(--blue)',status:'JARVIS PROCESSANDO DADOS NEURAIS'},
     SPEAKING:{hud:'FALANDO',txt:'Jarvis Falando...',dot:'var(--orange)',status:'JARVIS RESPONDENDO AO COMANDO'},
     MUTED:{hud:'MUTADO',txt:'Microfone Mutado',dot:'var(--red)',status:'MODO DE ESCUTA SILENCIADO'},
+    NIGHT_MODE:{hud:'🌙 NOTURNO',txt:'Modo Noturno',dot:'var(--text-tertiary)',status:'JARVIS EM REPOUSO NOTURNO'},
   };
   const s=stateMap[state]||stateMap.LISTENING;
   hud.textContent=s.hud; txt.textContent=s.txt; dot.style.background=s.dot;
@@ -1160,6 +1246,17 @@ function updateState(state){
 // ── VOLUME (bridge function — called by Python) ──
 let audioVolume=0.0;
 function updateVolume(vol){ audioVolume=vol; }
+
+// ── API QUOTA (bridge function — called by Python) ──
+function updateApiQuota(data){
+  if(typeof data==='string')try{data=JSON.parse(data);}catch(e){return;}
+  const pct=data.pct||0;
+  const model=data.model||'';
+  document.getElementById('bar-api-val').textContent=pct+'%';
+  document.getElementById('bar-api').style.width=pct+'%';
+  const color=pct>80?'var(--orange)':pct>95?'var(--red)':'var(--blue)';
+  document.getElementById('bar-api').style.background=color;
+}
 
 // ── LEADS (bridge function — called by Python) ──
 function updateLeadsData(leadsDataStr){
@@ -1212,6 +1309,11 @@ function updateGeopoliticsNews(newsDataStr){
     const pulseTxt = document.getElementById('globe-alert-count');
     if(pulseTxt) pulseTxt.textContent = `${alertCount} alertas ativos`;
 
+    // Update background globe hotspots
+    if(__bgGlobe && typeof __bgGlobe.updateHotspots === 'function'){
+      __bgGlobe.updateHotspots(news);
+    }
+
     // Update globe hotspots from news lat/lon
     if(news.length > 0){
       const hs = news
@@ -1220,7 +1322,12 @@ function updateGeopoliticsNews(newsDataStr){
           lat: n.lat,
           lon: n.lon,
           label: n.title.length > 20 ? n.title.substring(0,18)+'...' : n.title,
-          color: n.category === 'war' ? '#ff453a' : n.category === 'alert' ? '#ff9f0a' : '#30d158'
+          title: n.title,
+          body: n.body,
+          region: n.region,
+          time: n.time,
+          category: n.category,
+          color: n.category === 'war' ? '#ff453a' : n.category === 'alert' ? '#ff9f0a' : n.category === 'tech' ? '#bf5af2' : n.category === 'energy' ? '#ffb340' : n.category === 'health' ? '#ff375f' : n.category === 'climate' ? '#64d2ff' : '#30d158'
         }));
       if(hs.length > 0) updateGlobeHotspots(hs);
     }
@@ -1228,11 +1335,53 @@ function updateGeopoliticsNews(newsDataStr){
     const panel = document.querySelector('.globe-intel-panel');
     if (!panel) return;
 
+    const categoryCounts = {};
+    news.forEach(item => { categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1; });
+
+    const conflictsCount = (categoryCounts['war']||0)+(categoryCounts['alert']||0);
+    const marketsCount = (categoryCounts['market']||0)+(categoryCounts['geo']||0);
+    const techCount = categoryCounts['tech']||0;
+    const healthCount = categoryCounts['health']||0;
+    const climateCount = categoryCounts['climate']||0;
+    const energyCount = categoryCounts['energy']||0;
+    const totalNews = news.length;
+
     let html = `
       <div>
         <div class="intel-header">Inteligência Global · Tempo real</div>
         <div class="intel-title">Monitor de Eventos<br>Geopolíticos</div>
-        <div class="intel-sub">Atualizado às ${updated} · ${news.length} eventos · Nível: ${threatLevel}</div>
+        <div class="intel-sub">Atualizado às ${updated} · ${totalNews} eventos · Nível: ${threatLevel}</div>
+      </div>
+      <div class="intel-filter-tabs">
+        <div class="intel-filter-tab active" onclick="filterNews('all',this)">Todos<span class="tab-count">${totalNews}</span></div>
+        ${conflictsCount ? `<div class="intel-filter-tab" onclick="filterNews('war',this)">Conflitos<span class="tab-count">${conflictsCount}</span></div>` : ''}
+        ${marketsCount ? `<div class="intel-filter-tab" onclick="filterNews('market',this)">Mercados<span class="tab-count">${marketsCount}</span></div>` : ''}
+        ${techCount ? `<div class="intel-filter-tab" onclick="filterNews('tech',this)">Tech<span class="tab-count">${techCount}</span></div>` : ''}
+        ${healthCount ? `<div class="intel-filter-tab" onclick="filterNews('health',this)">Saúde<span class="tab-count">${healthCount}</span></div>` : ''}
+        ${climateCount ? `<div class="intel-filter-tab" onclick="filterNews('climate',this)">Clima<span class="tab-count">${climateCount}</span></div>` : ''}
+        ${energyCount ? `<div class="intel-filter-tab" onclick="filterNews('energy',this)">Energia<span class="tab-count">${energyCount}</span></div>` : ''}
+      </div>
+      <div class="intel-search">
+        <span class="intel-search-icon">🔍</span>
+        <input type="text" placeholder="Buscar eventos, regiões..." oninput="searchNews(this.value)"/>
+      </div>
+      <div class="intel-stats">
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--red);">${conflictsCount}</div>
+          <div class="intel-stat-label">Conflitos</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--orange);">${categoryCounts['alert']||0}</div>
+          <div class="intel-stat-label">Alertas</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--blue);">${marketsCount}</div>
+          <div class="intel-stat-label">Mercados</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-stat-val" style="color:var(--green);">${new Set(news.map(n=>n.region)).size}</div>
+          <div class="intel-stat-label">Regiões</div>
+        </div>
       </div>
     `;
 
@@ -1248,7 +1397,7 @@ function updateGeopoliticsNews(newsDataStr){
         const catLabel = item.category === 'war' ? 'Guerra' : 'Alerta';
         const cleanTitle = item.title.replace(/'/g, "\\'");
         html += `
-          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" data-lat="${item.lat != null ? item.lat : ''}" data-lon="${item.lon != null ? item.lon : ''}" onclick="onNewsCardClick(event, this)">
             <div class="intel-card-top">
               <span class="intel-card-tag ${catClass}">${catLabel}</span>
               <div class="intel-card-headline">${item.title}</div>
@@ -1286,7 +1435,7 @@ function updateGeopoliticsNews(newsDataStr){
         const catLabel = item.category === 'market' ? 'Mercado' : 'Geopolítica';
         const cleanTitle = item.title.replace(/'/g, "\\'");
         html += `
-          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" data-lat="${item.lat != null ? item.lat : ''}" data-lon="${item.lon != null ? item.lon : ''}" onclick="onNewsCardClick(event, this)">
             <div class="intel-card-top">
               <span class="intel-card-tag ${catClass}">${catLabel}</span>
               <div class="intel-card-headline">${item.title}</div>
@@ -1308,7 +1457,7 @@ function updateGeopoliticsNews(newsDataStr){
         const catLabel = item.category === 'tech' ? 'Tech' : 'Energia';
         const cleanTitle = item.title.replace(/'/g, "\\'");
         html += `
-          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" data-lat="${item.lat != null ? item.lat : ''}" data-lon="${item.lon != null ? item.lon : ''}" onclick="onNewsCardClick(event, this)">
             <div class="intel-card-top">
               <span class="intel-card-tag ${catClass}">${catLabel}</span>
               <div class="intel-card-headline">${item.title}</div>
@@ -1330,7 +1479,7 @@ function updateGeopoliticsNews(newsDataStr){
         const catLabel = item.category === 'health' ? 'Saúde' : 'Clima';
         const cleanTitle = item.title.replace(/'/g, "\\'");
         html += `
-          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" onclick="quickAction('analise: ${cleanTitle}')">
+          <div class="intel-card" data-category="${item.category}" data-title="${item.title}" data-body="${item.body}" data-region="${item.region}" data-lat="${item.lat != null ? item.lat : ''}" data-lon="${item.lon != null ? item.lon : ''}" onclick="onNewsCardClick(event, this)">
             <div class="intel-card-top">
               <span class="intel-card-tag ${catClass}">${catLabel}</span>
               <div class="intel-card-headline">${item.title}</div>
@@ -1346,6 +1495,32 @@ function updateGeopoliticsNews(newsDataStr){
     }
 
     panel.innerHTML = html;
+
+    // Click handler for globe rotation + analysis on news cards
+    window.onNewsCardClick = function(e, el){
+      const lat = parseFloat(el.dataset.lat);
+      const lon = parseFloat(el.dataset.lon);
+      if(!isNaN(lat) && !isNaN(lon)){
+        flyGlobeTo(lat, lon);
+        el.style.borderColor = 'var(--accent)';
+        setTimeout(() => el.style.borderColor = '', 1500);
+      }
+      const title = el.dataset.title || el.querySelector('.intel-card-headline')?.textContent || '';
+      if(title) quickAction('analise: ' + title);
+    };
+
+    // Populate right-column news feed (stacked cards)
+    try{
+      const feed = document.getElementById('news-feed-container');
+      if(feed){
+        feed.innerHTML = news.map(item=>{
+          const tag = item.category==='war'? 'Guerra' : (item.category || 'Info');
+          return `\n            <div class="intel-card" data-category="${item.category}" data-lat="${item.lat != null ? item.lat : ''}" data-lon="${item.lon != null ? item.lon : ''}" data-title="${item.title.replace(/"/g,'&quot;')}" onclick="onNewsCardClick(event, this)">\n              <div class="intel-card-top">\n                <span class="intel-card-tag ${item.category}">${tag}</span>\n                <div class="intel-card-headline">${item.title}</div>\n              </div>\n              <div class="intel-card-body">${item.body}</div>\n              <div class="intel-card-footer">\n                <span class="intel-card-region">${item.region||''}</span>\n                <span class="intel-card-time">${item.time||''}</span>\n              </div>\n            </div>\n          `;
+        }).join('');
+      }
+    }catch(e){console.error('feed populate error',e);}
+    currentNewsFilter = 'all';
+    currentNewsSearch = '';
 
     // Update 3D globe hotspots if overlay is open
     if(globeBigRunning && news.length > 0){
@@ -1379,6 +1554,61 @@ function updateGeopoliticsNews(newsDataStr){
   } catch(e) {
     console.error('updateGeopoliticsNews error', e);
   }
+}
+
+// ── MODEL SELECTOR ──
+let currentModelMode='gemini';
+let currentOllamaModel='qwen2.5:3b';
+let _modelChangeGuard=false;
+function changeModel(value, fromPython){
+  if(value===currentModelMode)return;
+  currentModelMode=value;
+  const labels={gemini:'Gemini',auto:'Auto',llama:'Ollama'};
+  document.getElementById('tb-model-text').textContent=labels[value]||value;
+  const dot=document.querySelector('#tb-model .dot');
+  if(value==='llama'){
+    dot.style.background='var(--purple)'; dot.style.boxShadow='0 0 6px var(--purple)';
+    document.getElementById('tb-model').style.borderColor='rgba(191,90,242,0.2)';
+    document.getElementById('tb-model').style.background='var(--purple-soft)';
+    document.getElementById('tb-model').style.color='var(--purple)';
+  }else if(value==='auto'){
+    dot.style.background='var(--teal)'; dot.style.boxShadow='0 0 6px var(--teal)';
+    document.getElementById('tb-model').style.borderColor='rgba(100,210,255,0.2)';
+    document.getElementById('tb-model').style.background='var(--teal-soft)';
+    document.getElementById('tb-model').style.color='var(--teal)';
+  }else{
+    dot.style.background='var(--green)'; dot.style.boxShadow='0 0 6px var(--green)';
+    document.getElementById('tb-model').style.borderColor='rgba(48,209,88,0.2)';
+    document.getElementById('tb-model').style.background='var(--green-soft)';
+    document.getElementById('tb-model').style.color='var(--green)';
+  }
+  if(!fromPython) console.log('CMD:set_mode:'+value);
+}
+function updateModelInfo(info){
+  try{
+    if(typeof info==='string'){info=JSON.parse(info);}
+    if(info.mode){
+      document.getElementById('model-select').value=info.mode;
+      changeModel(info.mode, true);
+      const labels={gemini:'Gemini',auto:'Auto',llama:'Ollama'};
+      document.getElementById('ds-model-text').textContent=labels[info.mode]||info.mode;
+      const dsDot=document.getElementById('ds-model-dot');
+      if(info.mode==='llama'){
+        dsDot.style.background='var(--purple)';
+        document.getElementById('ds-model-val').textContent=info.ollama_model||'local';
+      }else if(info.mode==='auto'){
+        dsDot.style.background='var(--teal)';
+        document.getElementById('ds-model-val').textContent='híbrido';
+      }else{
+        dsDot.style.background='var(--green)';
+        document.getElementById('ds-model-val').textContent='online';
+      }
+    }
+    if(info.ollama_model){
+      currentOllamaModel=info.ollama_model;
+      if(info.mode==='llama') document.getElementById('ds-model-val').textContent=info.ollama_model;
+    }
+  }catch(e){console.error('updateModelInfo error',e);}
 }
 
 // ── CMD BRIDGE ──
@@ -1470,7 +1700,7 @@ function initOrb(){
   orbCamera=new THREE.PerspectiveCamera(45,orbW/orbH,0.1,100);
   orbCamera.position.z=5;
 
-  // Main particle sphere - GREEN PARTICLES
+  // Main particle sphere - BLACK PARTICLES
   const PCOUNT=1500;
   const pGeo=new THREE.BufferGeometry();
   const pPos=new Float32Array(PCOUNT*3);
@@ -1484,7 +1714,7 @@ function initOrb(){
     pPos[i3]=r*Math.sin(phi)*Math.cos(theta);
     pPos[i3+1]=r*Math.sin(phi)*Math.sin(theta);
     pPos[i3+2]=r*Math.cos(phi);
-    pCol[i3]=0.19; pCol[i3+1]=0.82; pCol[i3+2]=0.35;
+    pCol[i3]=1; pCol[i3+1]=1; pCol[i3+2]=1;
     pSizes[i]=Math.random()*2.5+1.5;
   }
   pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
@@ -1535,7 +1765,7 @@ function initOrb(){
 
   // Inner core glow - GREEN
   const coreGeo=new THREE.SphereGeometry(0.6,32,32);
-  orbCoreMat=new THREE.MeshBasicMaterial({color:'#30d158',transparent:true,opacity:0.12,blending:THREE.AdditiveBlending});
+  orbCoreMat=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0.35,blending:THREE.AdditiveBlending});
   orbCore=new THREE.Mesh(coreGeo,orbCoreMat);
   orbScene.add(orbCore);
 
@@ -1551,17 +1781,18 @@ function initOrb(){
     rPos[i3]=Math.cos(a)*r;
     rPos[i3+1]=Math.sin(a*0.4)*0.2;
     rPos[i3+2]=Math.sin(a)*r;
-    rCol[i3]=0.04; rCol[i3+1]=0.52; rCol[i3+2]=1.0;
+    // pCol[i3]=0.04; pCol[i3+1]=0.52; pCol[i3+2]=1.0;
+    rCol[i3]=0.0; rCol[i3+1]=0.0; rCol[i3+2]=0.0; // Black
   }
   rGeo.setAttribute('position',new THREE.BufferAttribute(rPos,3));
   rGeo.setAttribute('color',new THREE.BufferAttribute(rCol,3));
   orbRmat=new THREE.PointsMaterial({
-    size:2,vertexColors:true,transparent:true,opacity:0.5,
+    size:2,vertexColors:true,transparent:true,opacity:0.0,
     blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true
   });
   orbRingPts=new THREE.Points(rGeo,orbRmat);
   orbRingPts.rotation.x=Math.PI*0.4;
-  orbScene.add(orbRingPts);
+  // orbScene.add(orbRingPts);
 
   // Second ring - PURPLE
   const r2Geo=new THREE.BufferGeometry();
@@ -1585,7 +1816,7 @@ function initOrb(){
   orbRing2Pts=new THREE.Points(r2Geo,orbR2mat);
   orbRing2Pts.rotation.x=Math.PI*0.6;
   orbRing2Pts.rotation.z=Math.PI*0.3;
-  orbScene.add(orbRing2Pts);
+  // orbScene.add(orbRing2Pts); // Removed glow ring
 
   const clock=new THREE.Clock();
   let tI=0,cI=0;
@@ -1598,6 +1829,7 @@ function initOrb(){
       else if(currentSystemState==='SPEAKING')bp=(typeof audioVolume!=='undefined'?audioVolume:0)*0.8;
       else if(currentSystemState==='THINKING')bp=0.25+(Math.sin(t*5.0)*0.5+0.5)*0.25;
       else if(currentSystemState==='MUTED')bp=0.02;
+      else if(currentSystemState==='NIGHT_MODE')bp=0.01;
     }
     tI=bp; cI+=(tI-cI)*0.08;
     orbPmat.uniforms.uTime.value=t;
@@ -1720,29 +1952,29 @@ updateState('LISTENING');
     {lat:60.2,lon:24.9},{lat:50.1,lon:14.4},{lat:48.2,lon:16.4},{lat:45.5,lon:-73.6},
     {lat:33.6,lon:-7.6},{lat:36.8,lon:10.2},{lat:-33.9,lon:18.4},{lat:26.2,lon:50.6},
   ];
-  const cityGeo = new THREE.BufferGeometry();
-  const cityPos = new Float32Array(cities.length * 3);
+  const cityGeoMini = new THREE.BufferGeometry();
+  const cityPosMini = new Float32Array(cities.length * 3);
   cities.forEach((d,i)=>{
     const phi=(90-d.lat)*Math.PI/180, theta=(d.lon+180)*Math.PI/180, r=1.015;
-    cityPos[i*3]=-r*Math.sin(phi)*Math.cos(theta);
-    cityPos[i*3+1]=r*Math.cos(phi);
-    cityPos[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
+    cityPosMini[i*3]=-r*Math.sin(phi)*Math.cos(theta);
+    cityPosMini[i*3+1]=r*Math.cos(phi);
+    cityPosMini[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
   });
-  cityGeo.setAttribute('position', new THREE.BufferAttribute(cityPos, 3));
-  const cityMat = new THREE.PointsMaterial({color:0x6ec6ff, size:0.025, transparent:true, opacity:0.5});
-  scene.add(new THREE.Points(cityGeo, cityMat));
+  cityGeoMini.setAttribute('position', new THREE.BufferAttribute(cityPosMini, 3));
+  const cityMatMini = new THREE.PointsMaterial({color:0x6ec6ff, size:0.025, transparent:true, opacity:0.5});
+  scene.add(new THREE.Points(cityGeoMini, cityMatMini));
 
   // AI Data rings around globe
-  const ringColors = [0x30d158, 0x0a84ff, 0xbf5af2];
-  const dataRings = [];
-  ringColors.forEach((col, i) => {
+  const ringColorsMini = [0x30d158, 0x0a84ff, 0xbf5af2];
+  const dataRingsMini = [];
+  ringColorsMini.forEach((col, i) => {
     const ringGeo = new THREE.TorusGeometry(1.12 + i*0.08, 0.002, 8, 80);
     const ringMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.15});
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = Math.PI/2 + i*0.15;
     ring.rotation.y = i*0.3;
     scene.add(ring);
-    dataRings.push({mesh:ring, speed:0.001 + i*0.0005, axis:i});
+    dataRingsMini.push({mesh:ring, speed:0.001 + i*0.0005, axis:i});
   });
 
   // Connection arcs between major cities
@@ -1810,7 +2042,7 @@ updateState('LISTENING');
       m.ring.lookAt(camera.position); m.dot.lookAt(camera.position);
     });
     // Animate AI data rings
-    dataRings.forEach(r=>{
+    dataRingsMini.forEach(r=>{
       if(r.axis===0) r.mesh.rotation.z += r.speed;
       else if(r.axis===1) r.mesh.rotation.x += r.speed;
       else r.mesh.rotation.y += r.speed;
@@ -1840,6 +2072,132 @@ updateState('LISTENING');
     }
   });
 })();
+
+// ── BACKGROUND GLOBE (full-screen, behind everything) ──
+let __bgGlobe = null;
+function initGlobeBg(){
+  const c = document.getElementById('globe-bg-canvas');
+  if(!c) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  c.width = w; c.height = h;
+  const renderer = new THREE.WebGLRenderer({canvas:c, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(w, h);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, w/h, 0.1, 100);
+      camera.position.z = 3.0;
+  const cameraHome = {z: 3.0, x: 0, y: 0};
+  const cameraZoom = {z: 3.0, targetZ: 3.0};
+  const tl = new THREE.TextureLoader();
+  const earthTex = tl.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg');
+  const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 96, 96),
+    new THREE.MeshPhongMaterial({map:earthTex, specular:new THREE.Color(0x333333), shininess:15})
+  );
+  scene.add(globe);
+  const atmos = new THREE.Mesh(
+    new THREE.SphereGeometry(1.08, 32, 32),
+    new THREE.ShaderMaterial({
+      vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader:'varying vec3 vN;void main(){float i=pow(0.6-dot(vN,vec3(0,0,1)),2.0);gl_FragColor=vec4(0.2,0.5,1.0,1.0)*i*0.35;}',
+      blending:THREE.AdditiveBlending, side:THREE.BackSide, transparent:true
+    })
+  );
+  scene.add(atmos);
+  scene.add(new THREE.DirectionalLight(0xffffff, 1.2));
+  scene.add(new THREE.AmbientLight(0x445577, 0.6));
+
+  // Hotspot markers container
+  const hotspotGroup = new THREE.Group();
+  scene.add(hotspotGroup);
+  let hotspotData = [];
+
+  __bgGlobe = {
+    globe, atmos, scene, camera, renderer, hotspotGroup, cameraZoom,
+    targetRotY: 0, targetRotX: 0,
+    currentRotY: 0, currentRotX: 0,
+    flying: false,
+    zoomTimer: null,
+    latLonMarkers: [],
+    updateHotspots(data){
+      while(hotspotGroup.children.length) hotspotGroup.remove(hotspotGroup.children[0]);
+      this.latLonMarkers = [];
+      hotspotData = (data || []).filter(n => n.lat != null && n.lon != null);
+      const colorMap = {war:'#ff453a',alert:'#ff9f0a',tech:'#bf5af2',energy:'#ffb340',health:'#ff375f',climate:'#64d2ff'};
+      hotspotData.forEach(n => {
+        const phi = (90-n.lat)*Math.PI/180, theta = (n.lon+180)*Math.PI/180, r = 1.015;
+        const x = -r*Math.sin(phi)*Math.cos(theta), y = r*Math.cos(phi), z = r*Math.sin(phi)*Math.sin(theta);
+        const col = new THREE.Color(colorMap[n.category] || '#30d158');
+        // Dot
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), new THREE.MeshBasicMaterial({color:col}));
+        dot.position.set(x, y, z);
+        hotspotGroup.add(dot);
+        // Ring
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.035, 0.05, 16), new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.6, side:THREE.DoubleSide}));
+        ring.position.set(x, y, z);
+        hotspotGroup.add(ring);
+        this.latLonMarkers.push({lat:n.lat, lon:n.lon, dot, ring, data:n});
+      });
+    },
+    flyTo(lat, lon){
+      const targetY = (lon + 180) * Math.PI / 180;
+      const targetX = lat * Math.PI / 180;
+      this.targetRotY = targetY;
+      this.targetRotX = targetX;
+      this.flying = true;
+      // Zoom in slightly
+      cameraZoom.targetZ = 2.0;
+      if(this.zoomTimer) clearTimeout(this.zoomTimer);
+      this.zoomTimer = setTimeout(() => { cameraZoom.targetZ = 3.0; }, 3000);
+    }
+  };
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if(!__bgGlobe) return;
+    const g = __bgGlobe;
+    // Smooth zoom
+    cameraZoom.z += (cameraZoom.targetZ - cameraZoom.z) * 0.04;
+    camera.position.z = cameraZoom.z;
+    if(g.flying){
+      g.currentRotY += (g.targetRotY - g.currentRotY) * 0.035;
+      g.currentRotX += (g.targetRotX - g.currentRotX) * 0.035;
+      if(Math.abs(g.targetRotY - g.currentRotY) < 0.001 && Math.abs(g.targetRotX - g.currentRotX) < 0.001){
+        g.currentRotY = g.targetRotY;
+        g.currentRotX = g.targetRotX;
+        g.flying = false;
+      }
+      g.globe.rotation.y = g.currentRotY;
+      g.globe.rotation.x = g.currentRotX * 0.3;
+      g.atmos.rotation.y = g.currentRotY;
+      g.atmos.rotation.x = g.currentRotX * 0.3;
+    } else {
+      g.globe.rotation.y += 0.0015;
+      g.atmos.rotation.y += 0.0015;
+    }
+    // Pulse hotspot rings
+    const t = Date.now()/1000;
+    g.latLonMarkers.forEach((m, i) => {
+      if(m.ring){
+        const p = 0.7 + Math.sin(t*2.5 + i) * 0.3;
+        m.ring.scale.set(p, p, p);
+        m.ring.material.opacity = 0.3 + Math.sin(t*2.5 + i) * 0.3;
+        m.ring.lookAt(camera.position);
+      }
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', ()=>{
+    const w2=window.innerWidth, h2=window.innerHeight;
+    renderer.setSize(w2,h2); camera.aspect=w2/h2; camera.updateProjectionMatrix();
+  });
+}
+
+function flyGlobeTo(lat, lon){
+  if(__bgGlobe) __bgGlobe.flyTo(lat, lon);
+}
 
 // ── 3D GLOBE BIG (Three.js — interactive with Earth texture) ──
 let globeBigRunning = false;
@@ -1953,21 +2311,21 @@ function initGlobeBig(){
     {lat:60.2,lon:24.9},{lat:50.1,lon:14.4},{lat:48.2,lon:16.4},{lat:45.5,lon:-73.6},{lat:33.6,lon:-7.6},
     {lat:36.8,lon:10.2},{lat:-33.9,lon:18.4},{lat:26.2,lon:50.6},{lat:41,lon:29},{lat:32.1,lon:34.8},
   ];
-  const cityGeo = new THREE.BufferGeometry();
-  const cityPos = new Float32Array(cities.length*3);
+  const cityGeoBig = new THREE.BufferGeometry();
+  const cityPosBig = new Float32Array(cities.length*3);
   cities.forEach((d,i)=>{
     const phi=(90-d.lat)*Math.PI/180, theta=(d.lon+180)*Math.PI/180, r=1.52;
-    cityPos[i*3]=-r*Math.sin(phi)*Math.cos(theta);
-    cityPos[i*3+1]=r*Math.cos(phi);
-    cityPos[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
+    cityPosBig[i*3]=-r*Math.sin(phi)*Math.cos(theta);
+    cityPosBig[i*3+1]=r*Math.cos(phi);
+    cityPosBig[i*3+2]=r*Math.sin(phi)*Math.sin(theta);
   });
-  cityGeo.setAttribute('position', new THREE.BufferAttribute(cityPos, 3));
-  globeBigGroup.add(new THREE.Points(cityGeo, new THREE.PointsMaterial({color:0x6ec6ff, size:0.03, transparent:true, opacity:0.45})));
+  cityGeoBig.setAttribute('position', new THREE.BufferAttribute(cityPosBig, 3));
+  globeBigGroup.add(new THREE.Points(cityGeoBig, new THREE.PointsMaterial({color:0x6ec6ff, size:0.03, transparent:true, opacity:0.45})));
 
   // AI Data rings
   const bigDataRings = [];
-  const ringColors = [0x30d158, 0x0a84ff, 0xbf5af2, 0xff9f0a];
-  ringColors.forEach((col, i) => {
+  const ringColorsBig = [0x30d158, 0x0a84ff, 0xbf5af2, 0xff9f0a];
+  ringColorsBig.forEach((col, i) => {
     const ringGeo = new THREE.TorusGeometry(1.65 + i*0.1, 0.003, 8, 100);
     const ringMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.12});
     const ring = new THREE.Mesh(ringGeo, ringMat);
@@ -1979,8 +2337,8 @@ function initGlobeBig(){
 
   // Connection arcs between major cities
   const bigArcMat = new THREE.LineBasicMaterial({color:0x30d158, transparent:true, opacity:0.1});
-  const arcPairs = [[0,4],[4,7],[7,11],[11,13],[13,14],[14,16],[16,17],[17,19],[19,21],[21,22],[22,23],[23,24],[24,25],[25,27],[27,28],[28,30],[30,31],[31,33],[33,35],[35,36],[36,38],[38,40],[40,42],[42,44],[44,46]];
-  arcPairs.forEach(([a,b])=>{
+  const arcPairsBig = [[0,4],[4,7],[7,11],[11,13],[13,14],[14,16],[16,17],[17,19],[19,21],[21,22],[22,23],[23,24],[24,25],[25,27],[27,28],[28,30],[30,31],[31,33],[33,35],[35,36],[36,38],[38,40],[40,42],[42,44],[44,46]];
+  arcPairsBig.forEach(([a,b])=>{
     if(a>=cities.length||b>=cities.length) return;
     const ca=cities[a], cb=cities[b];
     const pa=latLonToVec3Big(ca.lat, ca.lon, 1.52);
@@ -2007,7 +2365,7 @@ function initGlobeBig(){
     particleSpeeds.push(0.001 + Math.random() * 0.003);
   }
   particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-  const particleMat = new THREE.PointsMaterial({color:0x30d158, size:0.015, transparent:true, opacity:0.3});
+  const particleMat = new THREE.PointsMaterial({color:0x000000, size:0.015, transparent:true, opacity:0.3});
   const particleField = new THREE.Points(particleGeo, particleMat);
   globeBigGroup.add(particleField);
 
@@ -2218,9 +2576,11 @@ function hideGlobeDetailPopup(){
 function openGlobe(){
   const overlay = document.getElementById('globe-overlay');
   overlay.classList.add('open');
+  // Force layout recalculation
+  void overlay.offsetWidth;
   // Ensure hotspots are set before init
   if(globeBigNewsData.length === 0) globeBigNewsData = DEFAULT_HOTSPOTS;
-  setTimeout(initGlobeBig, 50);
+  setTimeout(initGlobeBig, 100);
 }
 function closeGlobe(){
   hideGlobeDetailPopup();
@@ -2268,6 +2628,13 @@ function applyNewsFilters(){
     const matchSearch = !currentNewsSearch || title.includes(currentNewsSearch) || body.includes(currentNewsSearch) || region.includes(currentNewsSearch);
     card.style.display = (matchCat && matchSearch) ? '' : 'none';
   });
+}
+
+// Initialize background globe after DOM loads
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', initGlobeBg);
+} else {
+  initGlobeBg();
 }
 
 </script>
@@ -2343,53 +2710,6 @@ function applyNewsFilters(){
         </div>
         <div class="intel-card-body">Mediadores do Catar reportam impasse. EUA reposicionam porta-aviões USS Gerald Ford no Mediterrâneo.</div>
         <div class="intel-card-footer"><span class="intel-card-region">🇵🇸 Oriente Médio</span><span class="intel-card-time">há 32 min</span></div>
-      </div>
-        <div class="intel-card-body">Forças russas intensificaram bombardeios na região norte. OTAN monitora movimentação de tropas na fronteira bielorrussa.</div>
-        <div class="intel-card-footer"><span class="intel-card-region">🇺🇦 Europa Oriental</span><span class="intel-card-time">há 14 min</span></div>
-      </div>
-
-      <div class="intel-card">
-        <div class="intel-card-top">
-          <span class="intel-card-tag war">Conflito</span>
-          <div class="intel-card-headline">Gaza: negociações de cessar-fogo em colapso</div>
-        </div>
-        <div class="intel-card-body">Mediadores do Catar reportam impasse. EUA reposicionam porta-aviões USS Gerald Ford no Mediterrâneo.</div>
-        <div class="intel-card-footer"><span class="intel-card-region">🇵🇸 Oriente Médio</span><span class="intel-card-time">há 32 min</span></div>
-      </div>
-
-      <div class="intel-divider">Mercados & Economia</div>
-
-      <div class="intel-tickers">
-        <div class="intel-ticker">
-          <div class="intel-ticker-name">S&P 500</div>
-          <div class="intel-ticker-val">5.847</div>
-          <div class="intel-ticker-delta up">▲ +0.82%</div>
-        </div>
-        <div class="intel-ticker">
-          <div class="intel-ticker-name">BTC/USD</div>
-          <div class="intel-ticker-val">67.4k</div>
-          <div class="intel-ticker-delta up">▲ +2.1%</div>
-        </div>
-        <div class="intel-ticker">
-          <div class="intel-ticker-name">Petróleo</div>
-          <div class="intel-ticker-val">$88.3</div>
-          <div class="intel-ticker-delta down">▼ -1.3%</div>
-        </div>
-        <div class="intel-ticker">
-          <div class="intel-ticker-name">IBOV</div>
-          <div class="intel-ticker-val">128.4k</div>
-          <div class="intel-ticker-delta down">▼ -0.4%</div>
-        </div>
-        <div class="intel-ticker">
-          <div class="intel-ticker-name">EUR/USD</div>
-          <div class="intel-ticker-val">1.087</div>
-          <div class="intel-ticker-delta up">▲ +0.15%</div>
-        </div>
-        <div class="intel-ticker">
-          <div class="intel-ticker-name">Ouro</div>
-          <div class="intel-ticker-val">$2.341</div>
-          <div class="intel-ticker-delta up">▲ +0.6%</div>
-        </div>
       </div>
 
       <div class="intel-card">

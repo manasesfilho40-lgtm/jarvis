@@ -1,14 +1,6 @@
 import json
-import sys
-from pathlib import Path
+from core.utils import BASE_DIR, API_CONFIG_PATH
 
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-BASE_DIR = get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 
 def rotate_api_key() -> bool:
     """
@@ -24,13 +16,13 @@ def rotate_api_key() -> bool:
             data = json.load(f)
 
         keys = data.get("gemini_api_keys", [])
-        
+
         # If gemini_api_keys list is not present, check if gemini_api_key itself is a list
         current_key = data.get("gemini_api_key")
         if isinstance(current_key, list):
             keys = current_key
             data["gemini_api_keys"] = keys
-            
+
         if not keys or len(keys) <= 1:
             return False
 

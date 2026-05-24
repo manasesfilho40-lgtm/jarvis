@@ -10,6 +10,8 @@ from PyQt6.QtCore import QUrl, pyqtSignal, QObject, QFileSystemWatcher
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
+
+_global_command_queue: list = []
 class RootWrapper(QObject):
     def __init__(self, window, app):
         super().__init__()
@@ -29,7 +31,7 @@ class RootWrapper(QObject):
         self.window.raise_()
 
     def mainloop(self):
-        sys.exit(self.app.exec())
+        self.app.exec()
 
 class JarvisWebPage(QWebEnginePage):
     def __init__(self, parent, console_callback):
@@ -45,6 +47,7 @@ class JarvisUI(QObject):
     volume_signal = pyqtSignal(float)
     leads_signal = pyqtSignal(str)
     geopolitics_signal = pyqtSignal(str)
+    quota_signal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -107,6 +110,7 @@ class JarvisUI(QObject):
         self.volume_signal.connect(self._safe_set_volume)
         self.leads_signal.connect(self._safe_update_leads)
         self.geopolitics_signal.connect(self._safe_update_geopolitics)
+        self.quota_signal.connect(self._safe_update_quota)
         
         # Load local HTML
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jarvis_ui.html"))
@@ -133,6 +137,9 @@ class JarvisUI(QObject):
         vol_js = f"updateVolume({self._current_volume});"
         self.web_view.page().runJavaScript(vol_js)
 
+        # Sync model info
+        self._push_model_info()
+
         # Load initial leads from any existing database file
         for db_path in self.leads_db_paths:
             if os.path.exists(db_path):
@@ -151,6 +158,19 @@ class JarvisUI(QObject):
                 # Log status change in visual chat container
                 log_msg = "SYS: Microfone silenciado." if self.muted else "SYS: Microfone ativado."
                 self.write_log(log_msg)
+            elif cmd.startswith("set_mode:"):
+                mode = cmd.split(":", 1)[1]
+                from agent.local_genai import set_routing_mode
+                set_routing_mode(mode)
+                mode_names = {"gemini": "Gemini (Nuvem)", "llama": "Ollama (Local)", "auto": "Automático"}
+                self.write_log(f"SYS: Modo alterado para {mode_names.get(mode, mode)}")
+                self._push_model_info()
+            elif cmd.startswith("set_ollama_model:"):
+                model_name = cmd.split(":", 1)[1]
+                from agent.local_genai import set_ollama_model
+                set_ollama_model(model_name)
+                self.write_log(f"SYS: Modelo Ollama alterado para {model_name}")
+                self._push_model_info()
             else:
                 if cmd == "start whatsapp automation agent":
                     cmd = "open whatsapp automation agent"
@@ -212,12 +232,22 @@ class JarvisUI(QObject):
         else:
             js_code = f"addLog({str(is_user).lower()}, {json.dumps(clean_msg)});"
             self.web_view.page().runJavaScript(js_code)
+        try:
+            from web_server import _push_log
+            _push_log(is_user, clean_msg)
+        except Exception:
+            pass
 
     def _safe_set_state(self, state):
         self._current_state = state
         if self._page_loaded:
             js_code = f"updateState({json.dumps(state)});"
             self.web_view.page().runJavaScript(js_code)
+        try:
+            from web_server import _push_state
+            _push_state(state)
+        except Exception:
+            pass
 
     def _safe_set_volume(self, vol):
         self._current_volume = vol
@@ -233,6 +263,27 @@ class JarvisUI(QObject):
     def _safe_update_geopolitics(self, geopolitics_json_str):
         if self._page_loaded:
             js_code = f"updateGeopoliticsNews({json.dumps(geopolitics_json_str)});"
+            self.web_view.page().runJavaScript(js_code)
+
+    def _push_model_info(self):
+        from agent.local_genai import get_current_model_info
+        info = get_current_model_info()
+        info_json = json.dumps(info)
+        if self._page_loaded:
+            js_code = f"updateModelInfo({info_json});"
+            self.web_view.page().runJavaScript(js_code)
+        try:
+            from web_server import _push_model_info as _ws_push
+            _ws_push(info_json)
+        except Exception:
+            pass
+
+    def update_quota(self, quota_json_str):
+        self.quota_signal.emit(quota_json_str)
+
+    def _safe_update_quota(self, quota_json_str):
+        if self._page_loaded:
+            js_code = f"updateApiQuota({quota_json_str});"
             self.web_view.page().runJavaScript(js_code)
 
     def _reload_leads_file(self, path):

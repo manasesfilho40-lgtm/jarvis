@@ -10,21 +10,245 @@ from typing import Callable
 
 from agent.planner       import create_plan, replan
 from agent.error_handler import analyze_error, generate_fix, ErrorDecision
+from core.utils import BASE_DIR, API_CONFIG_PATH, get_api_key as _get_api_key
 
 
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
+class ToolExecutionError(Exception):
+    pass
 
 
-BASE_DIR        = get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+TOOL_DISPATCH = {}
 
 
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+def _register(tool_name):
+    def wrapper(fn):
+        TOOL_DISPATCH[tool_name] = fn
+        return fn
+    return wrapper
+
+
+@_register("open_app")
+def _open_app(parameters, speak=None):
+    from actions.open_app import open_app
+    return open_app(parameters=parameters, player=None) or "Done."
+
+
+@_register("web_search")
+def _web_search(parameters, speak=None):
+    from actions.web_search import web_search
+    return web_search(parameters=parameters, player=None) or "Done."
+
+
+@_register("game_updater")
+def _game_updater(parameters, speak=None):
+    from actions.game_updater import game_updater
+    return game_updater(parameters=parameters, player=None, speak=speak) or "Done."
+
+
+@_register("browser_control")
+def _browser_control(parameters, speak=None):
+    from actions.browser_control import browser_control
+    return browser_control(parameters=parameters, player=None) or "Done."
+
+
+@_register("file_controller")
+def _file_controller(parameters, speak=None):
+    from actions.file_controller import file_controller
+    return file_controller(parameters=parameters, player=None) or "Done."
+
+
+@_register("code_helper")
+def _code_helper(parameters, speak=None):
+    from actions.code_helper import code_helper
+    return code_helper(parameters=parameters, player=None, speak=speak) or "Done."
+
+
+@_register("dev_agent")
+def _dev_agent(parameters, speak=None):
+    from actions.dev_agent import dev_agent
+    return dev_agent(parameters=parameters, player=None, speak=speak) or "Done."
+
+
+@_register("screen_process")
+def _screen_process(parameters, speak=None):
+    from actions.screen_processor import screen_process
+    screen_process(parameters=parameters, player=None)
+    return "Screen captured and analyzed."
+
+
+@_register("send_message")
+def _send_message(parameters, speak=None):
+    from actions.send_message import send_message
+    return send_message(parameters=parameters, player=None) or "Done."
+
+
+@_register("reminder")
+def _reminder(parameters, speak=None):
+    from actions.reminder import reminder
+    return reminder(parameters=parameters, player=None) or "Done."
+
+
+@_register("youtube_video")
+def _youtube_video(parameters, speak=None):
+    from actions.youtube_video import youtube_video
+    return youtube_video(parameters=parameters, player=None) or "Done."
+
+
+@_register("weather_report")
+def _weather_report(parameters, speak=None):
+    from actions.weather_report import weather_action
+    return weather_action(parameters=parameters, player=None) or "Done."
+
+
+@_register("computer_settings")
+def _computer_settings(parameters, speak=None):
+    from actions.computer_settings import computer_settings
+    return computer_settings(parameters=parameters, player=None) or "Done."
+
+
+@_register("desktop_control")
+def _desktop_control(parameters, speak=None):
+    from actions.desktop import desktop_control
+    return desktop_control(parameters=parameters, player=None) or "Done."
+
+
+@_register("computer_control")
+def _computer_control(parameters, speak=None):
+    from actions.computer_control import computer_control
+    return computer_control(parameters=parameters, player=None) or "Done."
+
+
+@_register("generated_code")
+def _generated_code(parameters, speak=None):
+    description = parameters.get("description", "")
+    if not description:
+        raise ValueError("generated_code requires a 'description' parameter.")
+    return _run_generated_code(description, speak=speak)
+
+
+@_register("flight_finder")
+def _flight_finder(parameters, speak=None):
+    from actions.flight_finder import flight_finder
+    return flight_finder(parameters=parameters, player=None, speak=speak) or "Done."
+
+
+@_register("notifier")
+def _notifier(parameters, speak=None):
+    from actions.notifier import send_notification
+    title = parameters.get("title", "Alert")
+    message = parameters.get("message", "")
+    send_notification(title, message)
+    return "Notification sent."
+
+
+@_register("whatsapp_web")
+def _whatsapp_web(parameters, speak=None):
+    from actions.whatsapp_web import whatsapp_web_action
+    return whatsapp_web_action(parameters=parameters, player=None) or "Done."
+
+
+@_register("apify_leads")
+def _apify_leads(parameters, speak=None):
+    from actions.apify_leads import apify_leads
+    return apify_leads(parameters=parameters) or "Done."
+
+
+@_register("negotiation_script")
+def _negotiation_script(parameters, speak=None):
+    from actions.negotiation_script import negotiation_script_action
+    return negotiation_script_action(parameters=parameters) or "Done."
+
+
+@_register("manage_memory")
+def _manage_memory(parameters, speak=None):
+    from memory.memory_manager import manage_memory
+    return manage_memory(parameters) or "Done."
+
+
+@_register("self_repair")
+def _self_repair(parameters, speak=None):
+    from actions.self_repair import run_diagnostics_and_repair
+    return run_diagnostics_and_repair(parameters=parameters, player=None, speak=speak) or "Done."
+
+
+@_register("manage_crm")
+def _manage_crm(parameters, speak=None):
+    from actions.leads_manager import manage_crm
+    return manage_crm(parameters=parameters) or "Done."
+
+
+@_register("refresh_geopolitics")
+def _refresh_geopolitics(parameters, speak=None):
+    from actions.geopolitics_monitor import fetch_geopolitics_news
+    return fetch_geopolitics_news()
+
+
+@_register("conversation")
+def _conversation(parameters, speak=None):
+    user_message = parameters.get("user_message", "")
+    if not user_message:
+        return "OK"
+    import agent.local_genai as genai
+    genai.configure(api_key=_get_api_key())
+
+    from agent.local_genai import get_routing_mode, get_ollama_model
+    is_local = get_routing_mode() == "llama"
+
+    if is_local:
+        prompt = (
+            f"Você é JARVIS, assistente pessoal de Tony Stark. "
+            f"Responda em português brasileiro, tratando o usuário como 'senhor'. "
+            f"Seja direto, inteligente e natural. Máximo 3 frases.\n\n"
+            f"Usuário: {user_message}\nJARVIS:"
+        )
+        model = genai.GenerativeModel(
+            model_name="",
+            system_instruction=""
+        )
+    else:
+        prompt = user_message
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash-lite",
+            system_instruction=(
+                "Você é JARVIS, assistente pessoal de Tony Stark. "
+                "Responda em português brasileiro tratando o usuário como 'senhor'. "
+                "Seja direto, eficiente, profissional. Máximo 3 frases. "
+                "Se não souber algo, ofereça pesquisar."
+            )
+        )
+
+    try:
+        response = model.generate_content(prompt)
+        reply = response.text.strip()
+        if speak:
+            speak(reply)
+        return reply
+    except Exception as e:
+        print(f"[Executor] [Conversation] Error: {e}")
+        fallbacks = [
+            "Sim, senhor. Estou operacional e à sua disposição.",
+            "Compreendo, senhor. Como deseja proceder?",
+            "Entendido, senhor. Algo mais em que possa ajudar?",
+            "Prossiga, senhor. Estou ouvindo.",
+        ]
+        import random
+        reply = random.choice(fallbacks)
+        if speak:
+            speak(reply)
+        return reply
+
+
+def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
+    if tool == "unknown_tool":
+        msg = parameters.get("description", "Não entendi qual ferramenta usar para esta tarefa, senhor.")
+        raise ToolExecutionError(msg)
+
+    fn = TOOL_DISPATCH.get(tool)
+    if fn:
+        return fn(parameters, speak=speak) or "Done."
+    print(f"[Executor] [WARNING] Unknown tool '{tool}'")
+    raise ToolExecutionError(f"Ferramenta '{tool}' não está disponível, senhor.")
+
 
 def _run_generated_code(description: str, speak: Callable | None = None) -> str:
     import agent.local_genai as genai
@@ -107,6 +331,7 @@ def _run_generated_code(description: str, speak: Callable | None = None) -> str:
     except Exception as e:
         raise RuntimeError(f"Generated code failed: {e}")
 
+
 def _inject_context(params: dict, tool: str, step_results: dict, goal: str = "") -> dict:
     if not step_results:
         return params
@@ -127,6 +352,8 @@ def _inject_context(params: dict, tool: str, step_results: dict, goal: str = "")
                 print(f"[Executor] 💉 Injected + translated content")
 
     return params
+
+
 def _detect_language(text: str) -> str:
     import agent.local_genai as genai
     genai.configure(api_key=_get_api_key())
@@ -171,115 +398,6 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         print(f"[Executor] ⚠️ Translation failed: {e}")
         return content
 
-def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
-
-    if tool == "open_app":
-        from actions.open_app import open_app
-        return open_app(parameters=parameters, player=None) or "Done."
-
-    elif tool == "web_search":
-        from actions.web_search import web_search
-        return web_search(parameters=parameters, player=None) or "Done."
-    elif tool == "game_updater":
-        from actions.game_updater import game_updater
-        return game_updater(parameters=parameters, player=None, speak=speak) or "Done."
-    elif tool == "browser_control":
-        from actions.browser_control import browser_control
-        return browser_control(parameters=parameters, player=None) or "Done."
-
-    elif tool == "file_controller":
-        from actions.file_controller import file_controller
-        return file_controller(parameters=parameters, player=None) or "Done."
-
-    elif tool == "code_helper":
-        from actions.code_helper import code_helper
-        return code_helper(parameters=parameters, player=None, speak=speak) or "Done."
-
-    elif tool == "dev_agent":
-        from actions.dev_agent import dev_agent
-        return dev_agent(parameters=parameters, player=None, speak=speak) or "Done."
-
-    elif tool == "screen_process":
-        from actions.screen_processor import screen_process
-        screen_process(parameters=parameters, player=None)
-        return "Screen captured and analyzed."
-
-    elif tool == "send_message":
-        from actions.send_message import send_message
-        return send_message(parameters=parameters, player=None) or "Done."
-
-    elif tool == "reminder":
-        from actions.reminder import reminder
-        return reminder(parameters=parameters, player=None) or "Done."
-
-    elif tool == "youtube_video":
-        from actions.youtube_video import youtube_video
-        return youtube_video(parameters=parameters, player=None) or "Done."
-
-    elif tool == "weather_report":
-        from actions.weather_report import weather_action
-        return weather_action(parameters=parameters, player=None) or "Done."
-
-    elif tool == "computer_settings":
-        from actions.computer_settings import computer_settings
-        return computer_settings(parameters=parameters, player=None) or "Done."
-
-    elif tool == "desktop_control":
-        from actions.desktop import desktop_control
-        return desktop_control(parameters=parameters, player=None) or "Done."
-
-    elif tool == "computer_control":
-        from actions.computer_control import computer_control
-        return computer_control(parameters=parameters, player=None) or "Done."
-
-    elif tool == "generated_code":
-        description = parameters.get("description", "")
-        if not description:
-            raise ValueError("generated_code requires a 'description' parameter.")
-        return _run_generated_code(description, speak=speak)
-
-    elif tool == "flight_finder":
-        from actions.flight_finder import flight_finder
-        return flight_finder(parameters=parameters, player=None, speak=speak) or "Done."
-
-    elif tool == "notifier":
-        from actions.notifier import send_notification
-        title = parameters.get("title", "Alert")
-        message = parameters.get("message", "")
-        send_notification(title, message)
-        return "Notification sent."
-
-    elif tool == "whatsapp_web":
-        from actions.whatsapp_web import whatsapp_web_action
-        return whatsapp_web_action(parameters=parameters, player=None) or "Done."
-
-    elif tool == "apify_leads":
-        from actions.apify_leads import apify_leads
-        return apify_leads(parameters=parameters) or "Done."
-
-    elif tool == "negotiation_script":
-        from actions.negotiation_script import negotiation_script_action
-        return negotiation_script_action(parameters=parameters) or "Done."
-
-    elif tool == "manage_memory":
-        from memory.memory_manager import manage_memory
-        return manage_memory(parameters) or "Done."
-
-    elif tool == "self_repair":
-        from actions.self_repair import run_diagnostics_and_repair
-        return run_diagnostics_and_repair(parameters=parameters, player=None, speak=speak) or "Done."
-
-    elif tool == "manage_crm":
-        from actions.leads_manager import manage_crm
-        return manage_crm(parameters=parameters) or "Done."
-
-    elif tool == "refresh_geopolitics":
-        from actions.geopolitics_monitor import fetch_geopolitics_news
-        return fetch_geopolitics_news()
-
-    else:
-        print(f"[Executor] [WARNING] Unknown tool '{tool}' - falling back to generated_code")
-        return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
 
 class AgentExecutor:
 
@@ -295,7 +413,7 @@ class AgentExecutor:
 
         replan_attempts = 0
         completed_steps = []
-        step_results    = {} 
+        step_results    = {}
         plan            = create_plan(goal)
 
         while True:
@@ -332,7 +450,7 @@ class AgentExecutor:
                         break
                     try:
                         result = _call_tool(tool, params, speak)
-                        step_results[step_num] = result 
+                        step_results[step_num] = result
                         completed_steps.append(step)
                         print(f"[Executor] [SUCCESS] Step {step_num} done: {str(result)[:100]}")
                         step_ok = True
@@ -365,7 +483,7 @@ class AgentExecutor:
                             if speak: speak(msg)
                             return msg
 
-                        else: 
+                        else:
                             fix_suggestion = recovery.get("fix_suggestion", "")
                             if fix_suggestion and tool != "generated_code":
                                 try:
@@ -410,29 +528,68 @@ class AgentExecutor:
             plan = replan(goal, completed_steps, failed_step, failed_error)
 
     def _summarize(self, goal: str, completed_steps: list, speak: Callable | None, step_results: dict | None = None) -> str:
-        fallback = f"Protocolo finalizado com sucesso, senhor. Concluí as etapas para: {goal[:60]}."
-        try:
-            import agent.local_genai as genai
-            genai.configure(api_key=_get_api_key())
-            model     = genai.GenerativeModel(model_name="gemini-2.5-flash-lite")
-            steps_str = "\n".join(f"- {s.get('description', '')}" for s in completed_steps)
-            results_str = ""
-            if step_results:
-                results_str = "\n".join(f"- Etapa {k}: {str(v)[:150]}" for k, v in step_results.items())
-            
-            prompt    = (
-                f'User goal: "{goal}"\n'
-                f"Completed steps:\n{steps_str}\n"
-                f"Step results:\n{results_str}\n\n"
-                "Escreva uma única frase natural em português brasileiro resumindo o que foi REALMENTE realizado baseado nos resultados reais de cada etapa acima. "
-                "Fale de maneira formal, inteligente e prestativa como o J.A.R.V.I.S. de Tony Stark. "
-                "Sempre fale na primeira pessoa do singular ('eu fiz', 'eu enviei', etc.) representando suas ações, "
-                "e trate o usuário como 'senhor'."
-            )
-            response = model.generate_content(prompt)
-            summary  = response.text.strip()
-            if speak: speak(summary)
-            return summary
-        except Exception:
-            if speak: speak(fallback)
-            return fallback
+        if not completed_steps:
+            msg = f"Não foi possível executar nenhuma etapa para: {goal[:60]}, senhor."
+            if speak: speak(msg)
+            return msg
+
+        # If all steps were conversation, it already spoke — don't repeat
+        all_conversation = all(s.get("tool") == "conversation" for s in completed_steps)
+        if all_conversation:
+            result = (step_results or {}).get(completed_steps[0].get("step", "?"), "")
+            return str(result) or "OK"
+
+        # For web_search steps, use LLM to synthesize a proper explanation
+        has_web_search = any(s.get("tool") == "web_search" for s in completed_steps)
+        if has_web_search:
+            try:
+                import agent.local_genai as genai
+                genai.configure(api_key=_get_api_key())
+                model     = genai.GenerativeModel(model_name="gemini-2.5-flash-lite")
+                steps_str = "\n".join(f"- {s.get('description', '')}" for s in completed_steps)
+                results_str = ""
+                if step_results:
+                    for step in completed_steps:
+                        sn = step.get("step", "?")
+                        r = str((step_results or {}).get(sn, ""))
+                        if r and r != "Done.":
+                            results_str += f"\nResultado do passo {sn}: {r[:300]}"
+
+                prompt = (
+                    f'O usuário perguntou: "{goal}"\n'
+                    f"Passos executados:\n{steps_str}\n"
+                    f"Resultados obtidos:{results_str}\n\n"
+                    "Com base APENAS nos resultados reais acima, escreva uma resposta natural em português brasileiro "
+                    "respondendo à pergunta do usuário. Seja direto, informativo e preciso. "
+                    "Não invente informações que não estão nos resultados. Máximo 4 frases."
+                )
+                response = model.generate_content(prompt)
+                summary = response.text.strip()
+                if speak: speak(summary)
+                return summary
+            except Exception:
+                pass  # fall through to default summarizer
+
+        success_lines = []
+        for step in completed_steps:
+            tool = step.get("tool", "?")
+            desc = step.get("description", "")
+            step_num = step.get("step", "?")
+            result = (step_results or {}).get(step_num, "")
+            result_str = str(result)[:120].strip()
+            if result_str and result_str != "Done.":
+                success_lines.append(f"{desc}: {result_str}")
+            else:
+                success_lines.append(desc)
+
+        if len(success_lines) == 1:
+            msg = success_lines[0]
+            if not msg.endswith((".", "!", "?")):
+                msg += ", senhor."
+            elif not msg.lower().endswith("senhor"):
+                msg = msg.rstrip(".!?") + ", senhor."
+        else:
+            msg = "Protocolo concluído, senhor. " + "; ".join(success_lines) + "."
+
+        if speak: speak(msg)
+        return msg

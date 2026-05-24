@@ -1,17 +1,6 @@
 import json
 import re
-import sys
-from pathlib import Path
-
-
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-
-BASE_DIR        = get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+from core.utils import API_CONFIG_PATH
 
 
 PLANNER_PROMPT = """You are the planning module of MARK XXV, a personal AI assistant.
@@ -213,9 +202,7 @@ OUTPUT — return ONLY valid JSON, no markdown, no explanation, no code blocks:
 """
 
 
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+from core.utils import get_api_key as _get_api_key
 
 
 def create_plan(goal: str, context: str = "") -> dict:
@@ -263,19 +250,243 @@ def create_plan(goal: str, context: str = "") -> dict:
 
 
 def _fallback_plan(goal: str) -> dict:
-    print("[Planner] [FALLBACK] Fallback plan")
+    """Fallback when JSON planning fails. Uses keyword matching to map intent to tools."""
+    goal_lower = goal.lower().strip().strip(",.!?;:")
+    print(f"[Planner] [FALLBACK] Attempting intent match for: {goal[:80]}")
+
+    # ── Tool intents ──
+    intent_map = [
+        # open_app
+        (r'(abr[aeiir]+|open|lanc[aeiir]+|execut[aeiir]+|inici[aeiir]+)',
+         lambda: ("open_app", {"app_name": _extract_app_name(goal)})),
+
+        # web_search — anything asking for info, news, analysis, research
+        (r'(pesquis[aeiir]+|busca[rz]|procur[aeiir]+|google|search|pesquisa|'
+         r'an[áa]lis[aeiir]+|analise|analis[aeiir]+|o\s+que\s+[ée]\s+|'
+         r'me\s+diga\s+sobre|me\s+fale\s+sobre|sobre\s+|'
+         r'not[íi]cias?|[uú]ltimas\s+not[íi]cias|novidades?\s+sobre|'
+         r'quero\s+saber\s+sobre|preciso\s+de\s+informa[cç][ãa]o|'
+         r'qual\s+[aá]\s+situa[cç][ãa]o|como\s+est[áa]\s+|'
+         r'explique|explique\s+sobre|conte\s+mais\s+sobre|'
+         r'inform[aeiç]+[oõ]es?\s+sobre|dados\s+sobre)',
+         lambda: ("web_search", {"query": goal})),
+
+        # whatsapp
+        (r'(whatsapp|whats\s*app|mensagem|enviar\s+mensagem|mandar\s+mensagem)',
+         lambda: ("whatsapp_web", {"action": "send", "target": "lead", "message": goal})),
+
+        # reminder / alarm
+        (r'(lembrete|lembr[ae]|alarm[aei]|notific[ai]|despertador)',
+         lambda: ("reminder", {"date": "", "time": "", "message": goal})),
+
+        # weather
+        (r'(clima|tempo|temperatura|previs[ãa]o\s+do\s+tempo)',
+         lambda: ("weather_report", {"city": _extract_city(goal)})),
+
+        # spotify / music
+        (r'(m[uú]sica|spotify|toc[aeiir]+|play|can[cç][aã]o|som)',
+         lambda: ("open_app", {"app_name": "Spotify", "play": True})),
+
+        # file / save
+        (r'(arquiv[ao]|salv[aeiir]+|documento|cri[aeiir]+\s+arquiv|[cr]ri[aeiir]+\s+documento)',
+         lambda: ("file_controller", {"action": "write", "path": "desktop", "name": _extract_filename(goal), "content": goal})),
+
+        # memory
+        (r'(mem[óo]ria|lembr[ae]r\s+de|guarda[rz]|anot[aeiir]+)',
+         lambda: ("manage_memory", {"action": "store", "key": goal[:30], "value": goal})),
+
+        # game / steam
+        (r'(jogo|game|steam|epic|atualiz[aeiir]+\s+jogos)',
+         lambda: ("game_updater", {"action": "update", "platform": "both"})),
+
+        # CRM / leads
+        (r'(crm|lead|cliente|contato)',
+         lambda: ("manage_crm", {"action": "list", "status": "new", "limit": 10})),
+
+        # clock / time
+        (r'(hor[áa]rio|rel[óo]gio|que\s+horas|hora\s+atual)',
+         lambda: ("web_search", {"query": goal})),
+
+        # computer settings
+        (r'(configur[aeiir]+|ajust[aeiir]+|defini[cç][ãa]o|resolu[cç][ãa]o|brilho|volume|wifi|bluetooth)',
+         lambda: ("computer_settings", {"action": "apply", "description": goal})),
+
+        # browser control
+        (r'(navegador|brave|site|p[aá]gina|url|acess[aeiir]+\s+o\s+site|entr[aeiir]+\s+no\s+site)',
+         lambda: ("browser_control", {"action": "go_to", "url": _extract_url(goal)})),
+
+        # screenshot
+        (r'(print|screenshot|captur[aeiir]+\s+tela|foto\s+da\s+tela)',
+         lambda: ("computer_control", {"action": "screenshot"})),
+
+        # self repair
+        (r'(diagn[óo]stico|repar[aeiir]+|auto\s+repar[aeiir]+|sa[uú]de\s+do\s+sistema|self\s+repair)',
+         lambda: ("self_repair", {})),
+
+        # geopolitics / news
+        (r'(geopol[íi]tica|not[íi]cia|amea[cç]a|threat|news|mundo|global)',
+         lambda: ("refresh_geopolitics", {})),
+
+        # flight
+        (r'(voo|flight|passagem|viagem|viaj[aeiir]+\s+de\s+avi[aã]o)',
+         lambda: ("flight_finder", {"origin": "", "destination": "", "date": ""})),
+    ]
+
+    for pattern, builder in intent_map:
+        if re.search(pattern, goal_lower):
+            tool, params = builder()
+            print(f"[Planner] [FALLBACK] Intent matched: {tool}")
+            return {
+                "goal": goal,
+                "steps": [{
+                    "step": 1, "tool": tool,
+                    "description": f"{tool}: {goal[:80]}",
+                    "parameters": params, "critical": True
+                }]
+            }
+
+    # ── No tool matched → treat as conversation via LLM ──
+    print(f"[Planner] [CONVERSATION] No tool matched, routing to chat: {goal[:80]}")
     return {
         "goal": goal,
-        "steps": [
-            {
-                "step": 1,
-                "tool": "web_search",
-                "description": f"Search for: {goal}",
-                "parameters": {"query": goal},
-                "critical": True
-            }
-        ]
+        "steps": [{
+            "step": 1, "tool": "conversation",
+            "description": f"Conversar com JARVIS: {goal[:80]}",
+            "parameters": {"user_message": goal, "response": ""},
+            "critical": False
+        }]
     }
+
+    # ── Tool intents ──
+    intent_map = [
+        # open_app
+        (r'(abr[aeiir]+|open|lanc[aeiir]+|execut[aeiir]+|inici[aeiir]+)',
+         lambda: ("open_app", {"app_name": _extract_app_name(goal)})),
+
+        # web_search
+        (r'(pesquis[aeiir]+|busca[rz]|procur[aeiir]+|google|search|pesquisa)',
+
+         lambda: ("web_search", {"query": goal})),
+
+        # whatsapp
+        (r'(whatsapp|whats\s*app|mensagem|enviar\s+mensagem|mandar\s+mensagem)',
+         lambda: ("whatsapp_web", {"action": "send", "target": "lead", "message": goal})),
+
+        # reminder / alarm
+        (r'(lembrete|lembr[ae]|alarm[aei]|notific[ai]|despertador)',
+         lambda: ("reminder", {"date": "", "time": "", "message": goal})),
+
+        # weather
+        (r'(clima|tempo|temperatura|weather|previs[ãa]o\s+do\s+tempo)',
+         lambda: ("weather_report", {"city": _extract_city(goal)})),
+
+        # spotify / music
+        (r'(m[uú]sica|spotify|toc[aeiir]+|play|can[cç][aã]o|som)',
+         lambda: ("open_app", {"app_name": "Spotify", "play": True})),
+
+        # file / save
+        (r'(arquiv[ao]|salv[aeiir]+|documento|cri[aeiir]+\s+arquiv|[cr]ri[aeiir]+\s+documento)',
+         lambda: ("file_controller", {"action": "write", "path": "desktop", "name": _extract_filename(goal), "content": goal})),
+
+        # memory
+        (r'(mem[óo]ria|lembr[ae]r\s+de|guarda[rz])',
+         lambda: ("manage_memory", {"action": "store", "key": goal[:30], "value": goal})),
+
+        # weather explicit city
+        (r'(clima|tempo|temperatura)\s+(em|de|do|da|para)\s+(.+)',
+         lambda: ("weather_report", {"city": re.search(r'(clima|tempo|temperatura)\s+(em|de|do|da|para)\s+(.+)', goal_lower).group(3).strip().capitalize()})),
+
+        # game / steam
+        (r'(jogo|game|steam|epic|atualiz[aeiir]+\s+jogos)',
+         lambda: ("game_updater", {"action": "update", "platform": "both"})),
+
+        # CRM / leads
+        (r'(crm|lead|cliente|contato)',
+         lambda: ("manage_crm", {"action": "list", "status": "new", "limit": 10})),
+
+        # clock / time
+        (r'(hor[áa]rio|rel[óo]gio|que\s+horas|hora\s+atual)',
+         lambda: ("web_search", {"query": goal})),
+
+        # computer settings
+        (r'(configur[aeiir]+|ajust[aeiir]+|defini[cç][ãa]o|resolu[cç][ãa]o|brilho|volume|wifi|bluetooth)',
+         lambda: ("computer_settings", {"action": "apply", "description": goal})),
+    ]
+
+    for pattern, builder in intent_map:
+        if re.search(pattern, goal_lower):
+            tool, params = builder()
+            print(f"[Planner] [FALLBACK] Intent matched: {tool}")
+            return {
+                "goal": goal,
+                "steps": [{
+                    "step": 1, "tool": tool,
+                    "description": f"{tool}: {goal[:80]}",
+                    "parameters": params, "critical": True
+                }]
+            }
+
+    print(f"[Planner] [CONVERSATION] No tool matched, routing to chat: {goal[:80]}")
+    return {
+        "goal": goal,
+        "steps": [{
+            "step": 1, "tool": "conversation",
+            "description": f"Conversar com JARVIS: {goal[:80]}",
+            "parameters": {"user_message": goal, "response": ""},
+            "critical": False
+        }]
+    }
+
+
+def _extract_app_name(goal: str) -> str:
+    """Extract app name after 'abra'/'open' etc."""
+    m = re.search(r'(?:abr[aeiir]+|open|lanc[aeiir]+|execut[aeiir]+|inici[aeiir]+)\s+(?:o\s+|a\s+|os\s+|as\s+)?(.+)', goal, re.IGNORECASE)
+    if m:
+        name = m.group(1).strip()
+        known = {
+            "brave": "Brave", "chrome": "Brave", "edge": "Brave", "navegador": "Brave",
+            "spotify": "Spotify", "musica": "Spotify", "whatsapp": "WhatsApp",
+            "calculadora": "Calculator", "calc": "Calculator",
+            "bloco de notas": "Notepad", "notepad": "Notepad",
+            "explorador de arquivos": "File Explorer", "explorer": "File Explorer",
+            "terminal": "Windows Terminal", "cmd": "Windows Terminal", "prompt": "Windows Terminal",
+            "discord": "Discord", "telegram": "Telegram",
+            "vs code": "Code", "vscode": "Code", "visual studio": "Code",
+            "word": "Microsoft Word", "excel": "Microsoft Excel", "powerpoint": "Microsoft PowerPoint",
+            "outlook": "Microsoft Outlook", "office": "Microsoft Word",
+            "configurações": "Settings", "settings": "Settings",
+            "relógio": "Clock", "clock": "Clock",
+        }
+        for k, v in known.items():
+            if k in name.lower():
+                return v
+        return name
+    return goal[:30]
+
+
+def _extract_city(goal: str) -> str:
+    m = re.search(r'(?:em|de|do|da|para)\s+(.+?)(?:\s*[?.!]|$)', goal)
+    return m.group(1).strip().capitalize() if m else "São Paulo"
+
+
+def _extract_filename(goal: str) -> str:
+    m = re.search(r'(?:salv[aeiir]+|cri[aeiir]+|arquiv[ao]|documento)\s+(?:para\s+|como\s+|em\s+)?(.+)', goal, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()[:50] + ".txt"
+    return "documento.txt"
+
+
+def _extract_url(goal: str) -> str:
+    m = re.search(r'(https?://[^\s]+)', goal)
+    if m:
+        return m.group(1)
+    m2 = re.search(r'(?:acess[aeiir]+\s+o\s+site|entr[aeiir]+\s+em|site|acess[aeiir]+)\s+(.+?)(?:\s*[?.!]|$)', goal, re.IGNORECASE)
+    if m2:
+        site = m2.group(1).strip().lower()
+        if not site.startswith("http"):
+            return "https://" + site
+        return site
+    return "https://www.google.com"
 
 
 def replan(goal: str, completed_steps: list, failed_step: dict, error: str) -> dict:

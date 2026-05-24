@@ -1,23 +1,22 @@
 import json
-import sys
 import traceback
-from pathlib import Path
 from datetime import datetime
+from core.utils import API_CONFIG_PATH, get_api_key_safe as _get_api_key
 
-def _get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-BASE_DIR        = _get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
-
-def _get_api_key() -> str:
+def _get_api_keys_list() -> list[str]:
     try:
         with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)["gemini_api_key"]
+            data = json.load(f)
+        keys = data.get("gemini_api_keys", [])
+        if not keys:
+            key = data.get("gemini_api_key", "")
+            if isinstance(key, list):
+                keys = key
+            elif key:
+                keys = [key]
+        return keys
     except Exception:
-        return ""
+        return []
 
 FALLBACK_NEWS = [
     {
@@ -111,12 +110,81 @@ FALLBACK_MARKETS = [
     {"name": "Ouro", "val": "$2.341", "delta": "+0.6", "up": True},
 ]
 
+def _try_fetch(api_key: str) -> dict | None:
+    from google import genai
+    from core.quota_tracker import record_request
+
+    client = genai.Client(api_key=api_key)
+
+    prompt = (
+        "Using Google Search, find the top 10 high-impact, REAL geopolitical events, "
+        "military conflicts, major financial market shifts, or crises happening globally RIGHT NOW (last 24 hours). "
+        "Return a clean JSON object with these keys:\n\n"
+        "'news': A JSON array of exactly 10 objects. MUST include diversity across regions and categories:\n"
+        "  - At least 1 from Americas (North or South)\n"
+        "  - At least 1 from Europe\n"
+        "  - At least 1 from Middle East or Africa\n"
+        "  - At least 1 from Asia-Pacific\n"
+        "  - At least 1 from Brazil or Latin America\n"
+        "  - Mix of categories: 'war', 'market', 'geo', 'alert', 'tech', 'energy', 'health', 'climate'\n"
+        "  Each object with:\n"
+        "  - 'category': one of 'war', 'market', 'geo', 'alert', 'tech', 'energy', 'health', 'climate'\n"
+        "  - 'title': Headline in Brazilian Portuguese (max 80 chars)\n"
+        "  - 'body': Brief explanation in Brazilian Portuguese (1-2 sentences, max 160 chars)\n"
+        "  - 'region': Region with flag emoji (e.g. '🇺🇦 Europa Oriental', '🇧🇷 Brasil', '🇺🇸 EUA', '🇯🇵 Japão', '🇿🇦 África do Sul')\n"
+        "  - 'time': Relative time ('há 10 min', 'há 1h', 'há 3h')\n"
+        "  - 'lat': Latitude of the event location (approximate)\n"
+        "  - 'lon': Longitude of the event location (approximate)\n\n"
+        "'markets': A JSON array of 6 market tickers. Each with:\n"
+        "  - 'name': Ticker name (e.g. 'S&P 500', 'BTC/USD', 'IBOV', 'EUR/USD', 'Ouro', 'Petróleo')\n"
+        "  - 'val': Current value as string (e.g. '5.847', '67.4k', '$88.3')\n"
+        "  - 'delta': Percentage change as string without sign (e.g. '0.82', '1.3')\n"
+        "  - 'up': boolean (true if positive, false if negative)\n\n"
+        "'threat_level': One of 'low', 'moderate', 'elevated', 'high', 'critical'\n\n"
+        "Respond ONLY with the JSON object. No markdown, no code blocks. "
+        "Use REAL current data from Google Search. Prioritize news from the last 12 hours."
+    )
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config={
+            "tools": [{"google_search": {}}],
+        },
+    )
+
+    raw = response.candidates[0].content.parts[0].text if response.candidates[0].content.parts else ""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines[-1].startswith("```"):
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
+
+    data = json.loads(raw)
+    record_request(api_key, "gemini-2.5-flash")
+
+    if "news" not in data:
+        data["news"] = FALLBACK_NEWS
+    if "markets" not in data:
+        data["markets"] = FALLBACK_MARKETS
+    if "threat_level" not in data:
+        data["threat_level"] = "moderate"
+
+    data["updated_at"] = datetime.now().strftime("%H:%M")
+
+    print(f"[Geopolitics Monitor] Fetched {len(data['news'])} live updates. Threat: {data['threat_level']}")
+    return data
+
+
 def fetch_geopolitics_news() -> str:
-    """
-    Queries Gemini using Google Search to fetch the latest global news / geopolitics,
-    returns a JSON with news items, market tickers, and threat level.
-    If it fails, returns the fallback mock data.
-    """
+    try:
+        from core.api_rotator import rotate_api_key
+    except ImportError:
+        rotate_api_key = None
+
     api_key = _get_api_key()
     if not api_key:
         print("[Geopolitics Monitor] No API key found. Using fallback.")
@@ -127,86 +195,34 @@ def fetch_geopolitics_news() -> str:
             "updated_at": datetime.now().strftime("%H:%M")
         }, ensure_ascii=False)
 
-    try:
-        from google import genai
+    last_error = None
+    max_attempts = max(len(_get_api_keys_list()), 1)
 
-        client = genai.Client(api_key=api_key)
+    for attempt in range(max_attempts):
+        try:
+            data = _try_fetch(api_key)
+            return json.dumps(data, ensure_ascii=False)
+        except Exception as e:
+            last_error = e
+            err_str = str(e).upper()
+            if ("RESOURCE_EXHAUSTED" in err_str or "429" in err_str or "QUOTA" in err_str) and rotate_api_key:
+                print(f"[Geopolitics Monitor] Quota exceeded for key. Rotating... (attempt {attempt + 1}/{max_attempts})")
+                if rotate_api_key():
+                    api_key = _get_api_key()
+                    import time
+                    time.sleep(2)
+                    continue
+            else:
+                break
 
-        prompt = (
-            "Using Google Search, find the top 10 high-impact, REAL geopolitical events, "
-            "military conflicts, major financial market shifts, or crises happening globally RIGHT NOW (last 24 hours). "
-            "Return a clean JSON object with these keys:\n\n"
-            "'news': A JSON array of exactly 10 objects. MUST include diversity across regions and categories:\n"
-            "  - At least 1 from Americas (North or South)\n"
-            "  - At least 1 from Europe\n"
-            "  - At least 1 from Middle East or Africa\n"
-            "  - At least 1 from Asia-Pacific\n"
-            "  - At least 1 from Brazil or Latin America\n"
-            "  - Mix of categories: 'war', 'market', 'geo', 'alert', 'tech', 'energy', 'health', 'climate'\n"
-            "  Each object with:\n"
-            "  - 'category': one of 'war', 'market', 'geo', 'alert', 'tech', 'energy', 'health', 'climate'\n"
-            "  - 'title': Headline in Brazilian Portuguese (max 80 chars)\n"
-            "  - 'body': Brief explanation in Brazilian Portuguese (1-2 sentences, max 160 chars)\n"
-            "  - 'region': Region with flag emoji (e.g. '🇺🇦 Europa Oriental', '🇧🇷 Brasil', '🇺🇸 EUA', '🇯🇵 Japão', '🇿🇦 África do Sul')\n"
-            "  - 'time': Relative time ('há 10 min', 'há 1h', 'há 3h')\n"
-            "  - 'lat': Latitude of the event location (approximate)\n"
-            "  - 'lon': Longitude of the event location (approximate)\n\n"
-            "'markets': A JSON array of 6 market tickers. Each with:\n"
-            "  - 'name': Ticker name (e.g. 'S&P 500', 'BTC/USD', 'IBOV', 'EUR/USD', 'Ouro', 'Petróleo')\n"
-            "  - 'val': Current value as string (e.g. '5.847', '67.4k', '$88.3')\n"
-            "  - 'delta': Percentage change as string without sign (e.g. '0.82', '1.3')\n"
-            "  - 'up': boolean (true if positive, false if negative)\n\n"
-            "'threat_level': One of 'low', 'moderate', 'elevated', 'high', 'critical'\n\n"
-            "Respond ONLY with the JSON object. No markdown, no code blocks. "
-            "Use REAL current data from Google Search. Prioritize news from the last 12 hours."
-        )
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config={
-                "tools": [{"google_search": {}}],
-                "response_mime_type": "application/json"
-            },
-        )
-
-        text = ""
-        for part in response.candidates[0].content.parts:
-            if hasattr(part, "text") and part.text:
-                text += part.text
-
-        text = text.strip()
-        if text.startswith("```"):
-            lines = text.splitlines()
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines[-1].startswith("```"):
-                lines = lines[:-1]
-            text = "\n".join(lines).strip()
-
-        data = json.loads(text)
-
-        if "news" not in data:
-            data["news"] = FALLBACK_NEWS
-        if "markets" not in data:
-            data["markets"] = FALLBACK_MARKETS
-        if "threat_level" not in data:
-            data["threat_level"] = "moderate"
-
-        data["updated_at"] = datetime.now().strftime("%H:%M")
-
-        print(f"[Geopolitics Monitor] Fetched {len(data['news'])} live updates. Threat: {data['threat_level']}")
-        return json.dumps(data, ensure_ascii=False)
-
-    except Exception as e:
-        print(f"[Geopolitics Monitor] Fetch failed: {e}. Using fallback.")
-        traceback.print_exc()
-        return json.dumps({
-            "news": FALLBACK_NEWS,
-            "markets": FALLBACK_MARKETS,
-            "threat_level": "moderate",
-            "updated_at": datetime.now().strftime("%H:%M")
-        }, ensure_ascii=False)
+    print(f"[Geopolitics Monitor] All keys exhausted or fetch failed: {last_error}. Using fallback.")
+    traceback.print_exc()
+    return json.dumps({
+        "news": FALLBACK_NEWS,
+        "markets": FALLBACK_MARKETS,
+        "threat_level": "moderate",
+        "updated_at": datetime.now().strftime("%H:%M")
+    }, ensure_ascii=False)
 
 if __name__ == "__main__":
     print(fetch_geopolitics_news())

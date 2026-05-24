@@ -1,0 +1,22 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+    "provider": {
+        "router": {
+            "name": "router",
+            "npm": "@ai-sdk/openai-compatible",
+            "options": {
+                "baseURL": "http://localhost:20128/v1",
+                "apiKey": "dummy"
+            },
+            "models": {
+                "qwen": {
+                    "name": "Qwen",
+                    "limit": {
+                        "context": 128000,
+                        "output": 8000
+                    }
+                }
+            }
+        }
+    }
+}

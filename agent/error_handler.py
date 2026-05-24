@@ -1,18 +1,7 @@
 import json
 import re
-import sys
-from pathlib import Path
 from enum import Enum
-
-
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-
-BASE_DIR        = get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+from core.utils import API_CONFIG_PATH
 
 
 class ErrorDecision(Enum):
@@ -49,9 +38,7 @@ Return ONLY valid JSON:
 """
 
 
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+from core.utils import get_api_key as _get_api_key
 
 
 def analyze_error(

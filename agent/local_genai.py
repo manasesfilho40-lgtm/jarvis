@@ -1,8 +1,7 @@
 import urllib.request
 import json
 import re
-import sys
-from pathlib import Path
+from core.utils import BASE_DIR, get_api_key_safe as _get_api_key_safe
 
 def configure(api_key=None):
     pass
@@ -11,54 +10,66 @@ class MockResponse:
     def __init__(self, text):
         self.text = text
 
+
 def _get_api_key():
+    return _get_api_key_safe()
+
+def _load_settings() -> dict:
     try:
-        if getattr(sys, "frozen", False):
-            base_dir = Path(sys.executable).parent
-        else:
-            base_dir = Path(__file__).resolve().parent.parent
-            
-        config_path = base_dir / "config" / "api_keys.json"
-        if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f).get("gemini_api_key", "")
+        settings_path = BASE_DIR / "config" / "model_settings.json"
+        if settings_path.exists():
+            with open(settings_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except:
+        pass
+    return {}
+
+def _save_settings(settings: dict) -> bool:
+    try:
+        settings_path = BASE_DIR / "config" / "model_settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        current = _load_settings()
+        current.update(settings)
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2)
+        return True
     except Exception as e:
-        print(f"[LocalGenAI] Failed to load Gemini API key: {e}")
-    return ""
+        print(f"[LocalGenAI] Failed to save settings: {e}")
+        return False
 
 def set_routing_mode(mode: str) -> bool:
     if mode not in ("auto", "llama", "gemini"):
         return False
-    try:
-        if getattr(sys, "frozen", False):
-            base_dir = Path(sys.executable).parent
-        else:
-            base_dir = Path(__file__).resolve().parent.parent
-            
-        settings_path = base_dir / "config" / "model_settings.json"
-        settings_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(settings_path, "w", encoding="utf-8") as f:
-            json.dump({"routing_mode": mode}, f, indent=2)
-        return True
-    except Exception as e:
-        print(f"[LocalGenAI] Failed to save routing mode: {e}")
-        return False
+    return _save_settings({"routing_mode": mode})
 
 def get_routing_mode() -> str:
+    return _load_settings().get("routing_mode", "auto")
+
+def set_ollama_model(model_name: str) -> bool:
+    return _save_settings({"ollama_model": model_name})
+
+def get_ollama_model() -> str:
+    return _load_settings().get("ollama_model", "qwen2.5:3b")
+
+def get_available_ollama_models() -> list:
     try:
-        if getattr(sys, "frozen", False):
-            base_dir = Path(sys.executable).parent
-        else:
-            base_dir = Path(__file__).resolve().parent.parent
-            
-        settings_path = base_dir / "config" / "model_settings.json"
-        if settings_path.exists():
-            with open(settings_path, "r", encoding="utf-8") as f:
-                return json.load(f).get("routing_mode", "gemini")
-    except:
-        pass
-    return "gemini"
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return [m["name"] for m in data.get("models", [])]
+    except Exception as e:
+        print(f"[LocalGenAI] Failed to list Ollama models: {e}")
+        return []
+
+def get_current_model_info() -> dict:
+    mode = get_routing_mode()
+    ollama_model = get_ollama_model()
+    available = get_available_ollama_models()
+    return {
+        "mode": mode,
+        "ollama_model": ollama_model,
+        "available_models": available
+    }
 
 def is_complex_task(prompt, system_instruction=""):
     prompt_upper = str(prompt).upper()
@@ -162,7 +173,9 @@ class GenerativeModel:
         except Exception as e:
             raise RuntimeError(f"Gemini generation request failed: {e}")
 
-    def _generate_via_llama(self, prompt, model_name="qwen2.5:3b"):
+    def _generate_via_llama(self, prompt, model_name=None):
+        if model_name is None:
+            model_name = get_ollama_model()
         url = "http://127.0.0.1:11434/api/generate"
         headers = {"Content-Type": "application/json"}
         
@@ -226,8 +239,8 @@ Return ONLY raw python code. No explanation, no markdown, no backticks."""
                 reply = re.sub(r"```(?:json|python)?", "", reply).strip().rstrip("`").strip()
                 return MockResponse(reply)
         except Exception as e:
-            if model_name == "qwen2.5:3b":
-                print(f"[LocalGenAI] ⚠️ qwen2.5:3b failed or not pulled yet: {e}. Retrying with llama3:8b...")
-                return self._generate_via_llama(prompt, model_name="llama3:8b")
+            if model_name != "llama3.2:3b":
+                print(f"[LocalGenAI] ⚠️ {model_name} failed: {e}. Retrying with llama3.2:3b...")
+                return self._generate_via_llama(prompt, model_name="llama3.2:3b")
             print(f"[LocalGenAI Error] Failed to generate content via Ollama: {e}")
             raise RuntimeError(f"Ollama generation failed: {e}")

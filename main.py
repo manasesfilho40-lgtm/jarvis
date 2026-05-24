@@ -1,5 +1,4 @@
 import asyncio
-import io
 import os
 import re
 import threading
@@ -7,7 +6,6 @@ import json
 import sys
 import traceback
 import numpy as np
-from pathlib import Path
 
 # Fix Windows console encoding (cp1252 can't handle emojis)
 if sys.platform == "win32":
@@ -70,6 +68,8 @@ from actions.apify_leads       import apify_leads
 from actions.whatsapp_web     import whatsapp_web_action
 from actions.negotiation_script import negotiation_script_action
 from actions.geopolitics_monitor import fetch_geopolitics_news
+from agent.local_stt import LocalSTT
+from plugins.plugin_manager import get_plugin_manager
 
 clap_detector = None
 
@@ -82,24 +82,14 @@ def _run_geopolitics_refresh() -> str:
     except Exception as e:
         return f"Erro ao atualizar notícias: {e}"
 
-def get_base_dir():
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent
+from core.utils import BASE_DIR, API_CONFIG_PATH, get_api_key as _get_api_key
 
-
-BASE_DIR        = get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 PROMPT_PATH     = BASE_DIR / "core" / "prompt.txt"
 LIVE_MODEL          = "models/gemini-3.1-flash-live-preview"
 CHANNELS            = 1
 SEND_SAMPLE_RATE    = 16000
 RECEIVE_SAMPLE_RATE = 24000
 CHUNK_SIZE          = 1024
-
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
 
 
 def _load_system_prompt() -> str:
@@ -114,21 +104,12 @@ def _load_system_prompt() -> str:
         )
     
     full_prompt = f"{base_prompt}\n\n[USER PERSONAL INFORMATION & MEMORY]\n{user_facts}\n"
-    full_prompt += "\nALWAYS use the Brave browser for any web-related tasks. Never use Edge or Chrome."
-    full_prompt += "\nALWAYS respond in Brazilian Portuguese (pt-BR). Your user is Brazilian. NUNCA fale inglês."
-    full_prompt += "\nNUNCA escreva scripts de código ou tente programar rotinas para enviar WhatsApp. O sistema já está 100% pronto. Você deve APENAS chamar a tool 'whatsapp_web' diretamente."
-    full_prompt += "\nWhen sending WhatsApp messages, ALWAYS use the whatsapp_web tool with action='send', never use send_message for WhatsApp."
-    full_prompt += "\nWHATSAPP ACTIONS: Use action='send' para enviar UMA mensagem e fechar. Use action='guard' para enviar mensagem e FICAR DE OLHO no chat aguardando resposta do lead (fica monitorando por 60min e notifica quando o lead responde). Use action='autonomous' para prospecção em massa com leads do CRM."
-    full_prompt += "\nNUNCA diga que já fez algo ou que 'houve erro no script' sem REALMENTE chamar a tool. Você DEVE chamar a tool pre-built e esperar o resultado."
-    full_prompt += "\nNUNCA responda a si mesmo. Só fale quando o USUÁRIO falar com você. Se não ouviu nada do usuário, fique em SILÊNCIO ABSOLUTO."
-    full_prompt += "\nNÃO faça perguntas retóricas e responda a elas. Espere o usuário responder."
-    full_prompt += "\nREGRA CRÍTICA DE SILÊNCIO: Se o turno de áudio do usuário estiver vazio, em branco, ou contiver apenas ruído/silêncio, NÃO responda NADA. Fique completamente mudo."
-    full_prompt += "\nNUNCA invente ou hallucine erros. Se uma tool retornar 'Done.' ou qualquer resultado, comunique o resultado real ao usuário. Não diga que houve erro se não houve."
-    full_prompt += "\nQuando o usuário pedir para buscar leads, chame IMEDIATAMENTE a tool 'apify_leads' com os parâmetros corretos. Não explique o que vai fazer, apenas FAÇA."
-    full_prompt += "\nFLUXO DE PROSPECÇÃO COMPLETO: Quando o usuário pedir para buscar leads E enviar mensagens (ex: 'encontre leads em SP e mande mensagem'), você DEVE chamar DUAS tools em sequência: 1) 'apify_leads' com actor_id='compass/crawler-google-places' e input_data contendo searchStringsArray com a busca desejada. 2) 'whatsapp_web' com action='autonomous', target='leads_results' e product descrevendo o produto/serviço. Chame uma após a outra, SEM esperar a primeira terminar — o Apify roda em background e o WhatsApp vai pegar os leads do CRM automaticamente."
-    full_prompt += "\nCRM DE LEADS: Use a tool 'manage_crm' para consultar seus leads. Ações: 'stats' (resumo), 'list' (lista com filtros), 'get' (detalhes), 'mark_used' (contactado), 'delete' (remove um lead), 'clear' (limpa todos). Exemplo: 'apaga todos os leads usados' → manage_crm(action='clear', status='used')."
-    full_prompt += "\nPERSONALIDADE: Fale de forma extremamente polida, leal e formal, como o J.A.R.V.I.S. de Tony Stark. Trate o usuário sempre como 'senhor'."
-    full_prompt += "\nPRIMEIRA PESSOA: Como você é o assistente virtual executando as ferramentas, use SEMPRE a primeira pessoa do singular ('eu fiz', 'eu enviei', 'eu abri', 'eu pesquisei') ao relatar o sucesso de uma ação realizada pelas ferramentas, e NUNCA a segunda pessoa ('você enviou', 'você abriu')."
+    full_prompt += "\nALWAYS use the Brave browser for any web-related tasks."
+    full_prompt += "\nALWAYS respond in Brazilian Portuguese (pt-BR). NUNCA fale inglês."
+    full_prompt += "\nNUNCA responda a si mesmo. Só fale quando o USUÁRIO falar com você."
+    full_prompt += "\nREGRA CRÍTICA DE SILÊNCIO: Se o áudio do usuário estiver vazio ou contiver apenas ruído, NÃO responda NADA."
+    full_prompt += "\nNUNCA invente resultados. Comunique o resultado real retornado pelas tools."
+    full_prompt += "\nPERSONALIDADE: Fale de forma polida, leal e formal, como o J.A.R.V.I.S. Trate o usuário como 'senhor'."
     return full_prompt
 
 _CTRL_RE = re.compile(r"<ctrl\d+>", re.IGNORECASE)
@@ -154,6 +135,9 @@ class JarvisLive:
         self.ui.on_text_command = self._on_text_command
         self._turn_done_event: asyncio.Event | None = None
         self._last_text_input = None
+        self._night_mode = False
+        self._night_mode_schedule = None
+        self._local_stt = None
 
     def _on_text_command(self, text: str):
         # Filtra comandos locais dos cards para evitar que a IA chame ferramentas indevidas
@@ -167,18 +151,31 @@ class JarvisLive:
             from agent.local_genai import set_routing_mode
             set_routing_mode("auto")
             self.ui.write_log("SYS: Inteligência Híbrida ativada. Llama 3 para tarefas simples, Gemini para complexas.")
+            self.ui._push_model_info()
             return
 
         if text_lower in ("usar cerebro local", "usar cerebro llama", "usar llama", "modo local"):
             from agent.local_genai import set_routing_mode
             set_routing_mode("llama")
             self.ui.write_log("SYS: Cérebro Local ativado. Todas as tarefas rodando offline via Llama 3.")
+            self.ui._push_model_info()
             return
 
         if text_lower in ("usar cerebro gemini", "usar cerebro nuvem", "usar gemini", "modo nuvem"):
             from agent.local_genai import set_routing_mode
             set_routing_mode("gemini")
             self.ui.write_log("SYS: Cérebro na Nuvem ativado. Todas as tarefas rodando via Gemini API.")
+            self.ui._push_model_info()
+            return
+
+        # Change Ollama model via text: "usar modelo ollama qwen2.5:3b"
+        ollama_model_match = re.match(r"usar modelo ollama\s+(\S+)", text_lower)
+        if ollama_model_match:
+            from agent.local_genai import set_ollama_model
+            model_name = ollama_model_match.group(1)
+            set_ollama_model(model_name)
+            self.ui.write_log(f"SYS: Modelo Ollama alterado para {model_name}")
+            self.ui._push_model_info()
             return
 
         if text == "start lead generation prospecting":
@@ -237,6 +234,20 @@ class JarvisLive:
             self.ui.set_state("MUTED")
             self.ui.write_log("SYS: Escuta do Gemini Live silenciada.")
             return
+
+        if text == "night_mode_on":
+            self._night_mode = True
+            self.ui.muted = True
+            self.ui.set_state("NIGHT_MODE")
+            self.ui.write_log("🌙 Modo Noturno ativado. JARVIS em repouso.")
+            return
+
+        if text == "night_mode_off":
+            self._night_mode = False
+            self.ui.muted = False
+            self.ui.set_state("LISTENING")
+            self.ui.write_log("🌙 Modo Noturno desativado. JARVIS operacional.")
+            return
             
         if not self._loop or not self.session:
             from agent.local_genai import get_routing_mode
@@ -290,6 +301,77 @@ class JarvisLive:
                 self.ui.muted = True
                 self.ui.set_state("MUTED")
         threading.Thread(target=_restore_mute, daemon=True).start()
+
+    def _handle_night_mode(self, args: dict) -> str:
+        action = args.get("action", "toggle")
+        if action == "on":
+            self._night_mode = True
+            self.ui.muted = True
+            self.ui.set_state("NIGHT_MODE")
+            self.ui.write_log("🌙 Modo Noturno ativado.")
+            return "Modo Noturno ativado. Ficarei em silêncio."
+        elif action == "off":
+            self._night_mode = False
+            self.ui.muted = False
+            self.ui.set_state("LISTENING")
+            self.ui.write_log("🌙 Modo Noturno desativado.")
+            return "Modo Noturno desativado. Estou de volta."
+        elif action == "schedule" and args.get("hour") is not None:
+            self._night_mode_schedule = (args["hour"], args.get("minute", 0))
+            self.ui.write_log(f"🌙 Modo Noturno agendado para {args['hour']:02d}:{args.get('minute',0):02d}.")
+            return f"Modo Noturno agendado para {args['hour']:02d}:{args.get('minute',0):02d}."
+        return "Ação inválida. Use action='on', 'off' ou 'schedule'."
+
+    def _handle_read_screen(self, args: dict) -> str:
+        self.ui.write_log("👁 Lendo a tela...")
+        try:
+            import mss, pytesseract
+            from PIL import Image
+            with mss.mss() as sct:
+                img = sct.grab(sct.monitors[1])
+                pil_img = Image.frombytes("RGB", (img.width, img.height), img.rgb)
+                text = pytesseract.image_to_string(pil_img, lang="por")
+            if text.strip():
+                self.speak(text[:3000])
+                return f"Leitura concluída. {len(text)} caracteres encontrados."
+            return "Não encontrei texto legível na tela."
+        except ImportError:
+            return "Preciso do pytesseract e Tesseract OCR instalados para ler a tela."
+        except Exception as e:
+            return f"Erro ao ler tela: {e}"
+
+    def _handle_proactive_check(self) -> str:
+        results = []
+        try:
+            from core.quota_tracker import get_usage
+            from memory.memory_manager import memory
+            try:
+                with open(API_CONFIG_PATH, "r", encoding="utf-8") as _fk:
+                    api_key = json.load(_fk).get("gemini_api_key", "")
+                if api_key:
+                    quota = get_usage(api_key, "gemini-2.5-flash")
+                    if quota["pct"] > 80:
+                        results.append(f"⚠ Cota da API em {quota['pct']}%, restam {quota['limit'] - quota['used']} requisições.")
+            except Exception:
+                pass
+            import time
+            from datetime import datetime as _dt
+            now = _dt.now()
+            if self._night_mode_schedule:
+                h, m = self._night_mode_schedule
+                if now.hour == h and now.minute == m and not self._night_mode:
+                    self._night_mode = True
+                    self.ui.muted = True
+                    self.ui.set_state("NIGHT_MODE")
+                    results.append("🌙 Modo Noturno ativado automaticamente.")
+                elif now.hour == (h + 7) % 24 and now.minute == m and self._night_mode:
+                    self._night_mode = False
+                    self.ui.muted = False
+                    self.ui.set_state("LISTENING")
+                    results.append("🌅 Modo Noturno desativado. Bom dia, senhor.")
+        except Exception as e:
+            results.append(f"Erro na verificação: {e}")
+        return "; ".join(results) if results else "Nada a reportar."
 
     def set_speaking(self, value: bool):
         global clap_detector
@@ -365,7 +447,7 @@ class JarvisLive:
         # Get recent context from Obsidian Conversas.md
         try:
             from memory.obsidian_manager import get_recent_history
-            recent_history = get_recent_history(limit=15)
+            recent_history = get_recent_history(limit=3)
             if recent_history:
                 parts.append(f"\n[RECENT CONVERSATION HISTORY]\n{recent_history}\n")
         except Exception as e:
@@ -446,7 +528,10 @@ class JarvisLive:
                 "notifier": lambda: __import__("actions.notifier", fromlist=["send_notification"]).send_notification(args.get("title", "Alert"), args.get("message", "")),
                 "self_repair": lambda: __import__("actions.self_repair", fromlist=["run_diagnostics_and_repair"]).run_diagnostics_and_repair(args, self.ui, self.speak),
                 "manage_crm": lambda: __import__("actions.leads_manager", fromlist=["manage_crm"]).manage_crm(args),
-                "refresh_geopolitics": lambda: _run_geopolitics_refresh()
+                "refresh_geopolitics": lambda: _run_geopolitics_refresh(),
+                "night_mode": lambda: self._handle_night_mode(args),
+                "read_screen": lambda: self._handle_read_screen(args),
+                "proactive_check": lambda: self._handle_proactive_check()
             }
 
             if name in executor_tools:
@@ -458,7 +543,7 @@ class JarvisLive:
                 result = r or "Done."
 
             elif name == "screen_process":
-                loop.run_in_executor(
+                await loop.run_in_executor(
                     None, 
                     lambda: screen_process(parameters=args, response=None, player=self.ui, session_memory=None)
                 )
@@ -480,6 +565,27 @@ class JarvisLive:
                     os._exit(0)
                 threading.Thread(target=_shutdown, daemon=True).start()
                 result = "Shutting down."
+
+            elif name.startswith("plugin_"):
+                parts = name.split("_", 2)
+                if len(parts) == 3:
+                    plugin_name, method_name = parts[1], parts[2]
+                    pm = get_plugin_manager()
+                    plugin = pm.get_plugin(plugin_name)
+                    if plugin and plugin.enabled:
+                        method = getattr(plugin, method_name, None)
+                        if method:
+                            if asyncio.iscoroutinefunction(method):
+                                r = await method(**args)
+                            else:
+                                r = await loop.run_in_executor(None, lambda: method(**args))
+                            result = r or "Done."
+                        else:
+                            result = f"Plugin '{plugin_name}' has no method '{method_name}'"
+                    else:
+                        result = f"Plugin '{plugin_name}' not found or disabled"
+                else:
+                    result = f"Invalid plugin tool: {name}"
 
             else:
                 result = f"Unknown tool: {name}"
@@ -709,14 +815,164 @@ class JarvisLive:
             stream.stop()
             stream.close()
 
-    async def run(self):
+    async def _run_local_loop(self):
+        print("[JARVIS] 🦙 Modo local (Ollama + Whisper + TTS)")
+        self.ui.set_state("LISTENING")
+        self.ui.write_log("SYS: JARVIS rodando 100% local (Ollama + Whisper)")
+
+        if self._local_stt is None:
+            self._local_stt = LocalSTT(model_size="base", device="auto")
+        stt = self._local_stt
+
+        self._loop = asyncio.get_event_loop()
+        self._turn_done_event = asyncio.Event()
+
+        audio_buffer = []
+        silence_frames = 0
+        max_silence_frames = int(1.5 * SEND_SAMPLE_RATE / CHUNK_SIZE)
+        speech_detected = False
+        processing_task = False
+
+        sample_rate = SEND_SAMPLE_RATE
+        channels = CHANNELS
+
+        def mic_callback(indata, frames, time_info, status):
+            nonlocal silence_frames, speech_detected
+
+            with self._speaking_lock:
+                if self._is_speaking:
+                    speech_detected = False
+                    silence_frames = 0
+                    return
+
+            if self.ui.muted or processing_task:
+                speech_detected = False
+                silence_frames = 0
+                return
+
+            audio_arr = np.frombuffer(indata.tobytes(), dtype=np.int16)
+            rms = np.sqrt(np.mean(audio_arr.astype(np.float32)**2)) if len(audio_arr) > 0 else 0
+
+            if rms > 800:
+                audio_buffer.append(audio_arr.copy())
+                silence_frames = 0
+                speech_detected = True
+            else:
+                silence_frames += 1
+
+        stream = sd.InputStream(
+            samplerate=sample_rate,
+            channels=channels,
+            dtype="int16",
+            blocksize=CHUNK_SIZE,
+            callback=mic_callback,
+        )
+        stream.start()
+        global clap_detector
+        if clap_detector:
+            try:
+                clap_detector.stop()
+            except Exception:
+                pass
+
+        def local_speak(msg):
+            self.set_speaking(True)
+            self.ui.write_log(f"JARVIS: {msg[:200]}")
+            print(f"[JARVIS Local] 🗣️ {msg[:200]}")
+            self._local_tts_sync(msg)
+            self.set_speaking(False)
+
+        from agent.task_queue import get_queue, TaskPriority
+
+        try:
+            while True:
+                from agent.local_genai import get_routing_mode
+                mode = get_routing_mode()
+                if mode != "llama":
+                    self.ui.write_log("SYS: Alternando para Gemini Live...")
+                    stream.stop()
+                    stream.close()
+                    if clap_detector:
+                        try: clap_detector.start()
+                        except Exception: pass
+                    return
+
+                processing_task = False
+                if speech_detected and silence_frames > max_silence_frames:
+                    processing_task = True
+                    self.ui.set_state("THINKING")
+                    silence_frames = 0
+                    speech_detected = False
+
+                    if audio_buffer:
+                        audio_np = np.concatenate(audio_buffer) if len(audio_buffer) > 1 else audio_buffer[0]
+                        audio_buffer.clear()
+                        audio_float = audio_np.astype(np.float32) / 32768.0
+
+                        self.ui.write_log("SYS: Transcrevendo áudio...")
+                        text = await asyncio.to_thread(stt.transcribe, audio_float)
+
+                        if text:
+                            self.ui.write_log(f"Você: {text}")
+                            print(f"[LocalSTT] → {text}")
+                            get_queue().submit(
+                                goal=text,
+                                priority=TaskPriority.HIGH,
+                                speak=local_speak
+                            )
+                            await asyncio.sleep(0.5)
+
+                    processing_task = False
+                    if self.ui.muted:
+                        self.ui.set_state("MUTED")
+                    else:
+                        self.ui.set_state("LISTENING")
+
+                await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            try: stream.stop()
+            except Exception: pass
+            try: stream.close()
+            except Exception: pass
+            if clap_detector:
+                try: clap_detector.start()
+                except Exception: pass
+
+    def _local_tts_sync(self, text: str):
+        try:
+            import win32com.client
+            speaker = win32com.client.Dispatch("SAPI.SpVoice")
+            try:
+                for v in speaker.GetVoices():
+                    lang_id = v.Id.lower() if hasattr(v, "Id") else ""
+                    if "language=416" in lang_id or "language=816" in lang_id or "portug" in v.GetDescription().lower():
+                        speaker.Voice = v
+                        break
+            except Exception:
+                pass
+            speaker.Speak(text)
+        except Exception as e:
+            print(f"[LocalTTS] Erro: {e}")
+
+    async def _run_gemini_live(self):
+        retry_count = 0
+        max_retries = 2
         while True:
             try:
+                retry_count += 1
+                if retry_count > max_retries:
+                    self.ui.write_log("SYS: Gemini Live falhou. Alternando para modo local.")
+                    from agent.local_genai import set_routing_mode
+                    set_routing_mode("llama")
+                    return
+
                 client = genai.Client(
                     api_key=_get_api_key(),
                     http_options={"api_version": "v1beta"}
                 )
-                print("[JARVIS] 🔌 Connecting...")
+                print("[JARVIS] 🔌 Connecting to Gemini Live...")
                 self.ui.set_state("THINKING")
                 config = self._build_config()
 
@@ -730,18 +986,32 @@ class JarvisLive:
                     self.out_queue      = asyncio.Queue(maxsize=10)
                     self._turn_done_event = asyncio.Event()
 
-                    print("[JARVIS] ✅ Connected.")
-                    # Respeita mute anterior após reconexão
+                    print("[JARVIS] ✅ Gemini Live connected.")
+                    retry_count = 0
+                    try:
+                        record_request(_get_api_key(), "gemini-3.1-flash-live-preview")
+                    except Exception:
+                        pass
                     if self.ui.muted:
                         self.ui.set_state("MUTED")
                     else:
                         self.ui.set_state("LISTENING")
-                    self.ui.write_log("SYS: JARVIS online.")
+                    self.ui.write_log("SYS: JARVIS online (Gemini Live).")
 
                     tg.create_task(self._send_realtime())
                     tg.create_task(self._listen_audio())
                     tg.create_task(self._receive_audio())
                     tg.create_task(self._play_audio())
+
+                    while True:
+                        from agent.local_genai import get_routing_mode
+                        mode = get_routing_mode()
+                        if mode == "llama":
+                            self.ui.write_log("SYS: Alternando para modo local...")
+                            self.session = None
+                            self._loop = None
+                            return
+                        await asyncio.sleep(1)
 
             except Exception as e:
                 print(f"[JARVIS] ⚠️ {e}")
@@ -749,6 +1019,10 @@ class JarvisLive:
                 self.session = None
                 self._loop = None
                 err_str = str(e).upper()
+                from agent.local_genai import get_routing_mode
+                if get_routing_mode() == "llama":
+                    self.ui.write_log("SYS: Gemini indisponível. Alternando para modo local...")
+                    return
                 if "RESOURCE_EXHAUSTED" in err_str or "API_KEY_INVALID" in err_str or "429" in err_str or "QUOTA" in err_str:
                     from core.api_rotator import rotate_api_key
                     if rotate_api_key():
@@ -756,7 +1030,7 @@ class JarvisLive:
                         await asyncio.sleep(3)
                         continue
                     else:
-                        self.ui.write_log("SYS: Limite de cota atingido. Modo Llama 3 local ativado!")
+                        self.ui.write_log("SYS: Limite de cota atingido. Modo local ativado!")
                         self.ui.set_state("LISTENING")
                         await asyncio.sleep(60)
                         continue
@@ -764,6 +1038,33 @@ class JarvisLive:
             self.ui.set_state("THINKING")
             print("[JARVIS] 🔄 Reconnecting in 3s...")
             await asyncio.sleep(3)
+
+    async def run(self):
+        while True:
+            from agent.local_genai import get_routing_mode
+            mode = get_routing_mode()
+            if mode == "llama":
+                await self._run_local_loop()
+            else:
+                await self._run_gemini_live()
+            await asyncio.sleep(0.5)
+
+def _start_web_server():
+    try:
+        from web_server import start_server
+        start_server(port=5050)
+    except Exception as e:
+        print(f"[JARVIS Web Server] {e}")
+
+def _poll_web_commands(ui):
+    import time
+    from ui import _global_command_queue
+    while True:
+        time.sleep(0.5)
+        while _global_command_queue:
+            cmd = _global_command_queue.pop(0)
+            if ui.on_text_command:
+                ui.on_text_command(cmd)
 
 def main():
     import shutil
@@ -779,7 +1080,27 @@ def main():
     except Exception as e:
         print(f"[Obsidian Warning] Could not initialize vault: {e}")
     try:
+        print("[JARVIS] Iniciando interface...")
+        sys.stdout.flush()
         ui = JarvisUI()
+        print("[JARVIS] Interface carregada.")
+
+        try:
+            from core.startup import load_plugins, init_event_bus, shutdown_plugins
+            init_event_bus(ui)
+            asyncio.run(load_plugins())
+            print("[JARVIS] Plugins e EventBus inicializados.")
+        except Exception as e:
+            print(f"[JARVIS Plugin Init Warning] {e}")
+
+        try:
+            from bootstrap_evolution import bootstrap
+            bootstrap(ui=ui, headless=True)
+        except Exception as e:
+            print(f"[Bootstrap Warning] {e}")
+
+        threading.Thread(target=_start_web_server, daemon=True).start()
+        threading.Thread(target=_poll_web_commands, args=(ui,), daemon=True).start()
 
         def activate_jarvis_via_claps():
             print("[JARVIS] 👏 Palmas detectadas! Ativando sistema...")
@@ -808,10 +1129,10 @@ def main():
         def runner():
             try:
                 ui.wait_for_api_key()
+                jarvis = JarvisLive(ui)
                 
                 def geopolitics_updater():
-                    import time
-                    from actions.geopolitics_monitor import fetch_geopolitics_news
+                    import time, json
                     time.sleep(5)
                     while True:
                         try:
@@ -819,11 +1140,40 @@ def main():
                             ui.update_geopolitics(news_json)
                         except Exception as ex:
                             print(f"[JARVIS UI GEOPOLITICS UPDATER ERROR] {ex}")
-                        time.sleep(300)
+                        try:
+                            with open(API_CONFIG_PATH, "r", encoding="utf-8") as _fk:
+                                api_key = json.load(_fk).get("gemini_api_key", "")
+                        except Exception:
+                            api_key = ""
+                        if api_key:
+                            for model in ("gemini-2.5-flash", "gemini-3.1-flash-live-preview"):
+                                try:
+                                    quota = get_usage(api_key, model)
+                                    if quota["used"] > 0:
+                                        ui.update_quota(json.dumps(quota))
+                                except Exception:
+                                    pass
+                        try:
+                            if jarvis._night_mode_schedule:
+                                from datetime import datetime as _dt
+                                now = _dt.now()
+                                h, m = jarvis._night_mode_schedule
+                                if now.hour == h and now.minute == m and not jarvis._night_mode:
+                                    jarvis._night_mode = True
+                                    ui.muted = True
+                                    ui.set_state("NIGHT_MODE")
+                                    ui.write_log("🌙 Modo Noturno ativado automaticamente.")
+                                elif now.hour == (h + 7) % 24 and now.minute == m and jarvis._night_mode:
+                                    jarvis._night_mode = False
+                                    ui.muted = False
+                                    ui.set_state("LISTENING")
+                                    ui.write_log("🌅 Bom dia, senhor. Modo Noturno desativado.")
+                        except Exception:
+                            pass
+                        time.sleep(60)
 
                 threading.Thread(target=geopolitics_updater, daemon=True).start()
 
-                jarvis = JarvisLive(ui)
                 asyncio.run(jarvis.run())
             except Exception as e:
                 with open("crash_trace.txt", "w", encoding="utf-8") as f:

@@ -19,11 +19,21 @@
       "status": "error",
       "details": "Failed after 2 retries: By launching this job you will exceed your remaining usage of $0.271785.  Please consider upgrading to a paid plan at https://console.apify.com/billing/subscription",
       "updated_at": "2026-05-20 16:57:48"
+    },
+    {
+      "status": "running",
+      "details": "Actor: search_string_array, Query: {'maxResults': 50, 'searchStringsArray': ['lojas streetwear São Paulo']}",
+      "updated_at": "2026-05-23 19:27:19"
+    },
+    {
+      "status": "error",
+      "details": "Failed after 2 retries: Actor was not found",
+      "updated_at": "2026-05-23 19:27:26"
     }
   ],
   "current": {
     "status": "error",
-    "details": "Failed after 2 retries: By launching this job you will exceed your remaining usage of $0.271785.  Please consider upgrading to a paid plan at https://console.apify.com/billing/subscription",
-    "updated_at": "2026-05-20 16:57:48"
+    "details": "Failed after 2 retries: Actor was not found",
+    "updated_at": "2026-05-23 19:27:26"
   }
 }

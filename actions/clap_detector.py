@@ -17,11 +17,8 @@ from __future__ import annotations
 
 import math
 import struct
-import threading
 import time
 from typing import Callable
-
-import sounddevice as sd
 from pathlib import Path
 
 
@@ -64,7 +61,6 @@ class ClapDetector:
         self.chunk_size = int(sample_rate * chunk_ms / 1000)
 
         self._running = False
-        self._thread: threading.Thread | None = None
         self._last_clap_time: float = 0.0
         self._last_trigger_time: float = 0.0
         self._clap_count = 0
@@ -80,17 +76,16 @@ class ClapDetector:
         self._enabled = value
 
     def start(self):
-        """Start listening for claps in background thread."""
-        if self._running:
-            return
+        """Start listening for claps."""
         self._running = True
-        # Do not start _listen_loop thread to avoid opening a second mic stream
-        # self._thread = threading.Thread(target=self._listen_loop, daemon=True)
-        # self._thread.start()
 
     def stop(self):
-        """Stop listening."""
+        """Stop listening and reset state for clean restart."""
         self._running = False
+        self._last_clap_time = 0.0
+        self._last_trigger_time = 0.0
+        self._clap_count = 0
+        self._prev_rms = 0.0
 
     def process_audio_chunk(self, raw: bytes):
         """Process a chunk of audio data externally (passive mode)."""
@@ -165,70 +160,4 @@ class ClapDetector:
         except:
             pass
 
-    def _listen_loop(self):
-        """Main listening loop running in background thread."""
-        prev_rms = 0.0
-        self._log(f"[ClapDetector] Iniciando loop de escuta...")
 
-        while self._running:
-            try:
-                # Tenta abrir o dispositivo padrão dentro do loop para recuperação de erros
-                with sd.RawInputStream(
-                    samplerate=self.sample_rate,
-                    channels=1,
-                    dtype="int16",
-                    blocksize=self.chunk_size,
-                ) as stream:
-                    self._log(f"[ClapDetector] Ouvindo com threshold={self.threshold}...")
-                    while self._running:
-                        try:
-                            data, _ = stream.read(self.chunk_size)
-                            raw = bytes(data)
-                        except Exception as e:
-                            self._log(f"[ClapDetector] Erro na leitura (reconfigurando stream): {e}")
-                            break # Sai do stream para recriá-lo no próximo ciclo
-
-                        if not self._enabled:
-                            prev_rms = 0.0
-                            time.sleep(0.2)
-                            continue
-
-                        rms = self._rms(raw)
-                        now = time.time()
-
-                        # Check cooldown
-                        if now - self._last_trigger_time < self.cooldown:
-                            prev_rms = rms
-                            continue
-
-                        if self._is_clap(rms, prev_rms):
-                            time_since_last = now - self._last_clap_time
-                            self._log(f"[ClapDetector] 👏 Palma! (Contagem: {self._clap_count + 1}) RMS={rms:.4f}")
-
-                            if time_since_last < self.double_clap_window and self._clap_count >= 1:
-                                # Double clap detected!
-                                self._log("[ClapDetector] ✨ Dupla palma detectada! DISPARANDO...")
-                                self._clap_count = 0
-                                self._last_trigger_time = now
-                                try:
-                                    self.on_clap()
-                                except Exception as e:
-                                    self._log(f"[ClapDetector] Erro no callback: {e}")
-                            else:
-                                # First clap
-                                self._clap_count = 1
-                                self._last_clap_time = now
-
-                        # Reset clap count if window expired
-                        if now - self._last_clap_time > self.double_clap_window:
-                            if self._clap_count > 0:
-                                self._clap_count = 0
-
-                        prev_rms = rms
-            except Exception as e:
-                self._log(f"[ClapDetector] Erro ao iniciar stream: {e}")
-            
-            if self._running:
-                time.sleep(1.0) # Espera 1s antes de tentar reconectar o dispositivo
-
-        self._running = False

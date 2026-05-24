@@ -1,13 +1,6 @@
 import json
-import sys
-from pathlib import Path
+from core.utils import BASE_DIR, get_api_key_safe
 
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-BASE_DIR    = get_base_dir()
 CONFIG_DIR  = BASE_DIR / "config"
 CONFIG_FILE = CONFIG_DIR / "api_keys.json"
 
@@ -40,7 +33,7 @@ def load_api_keys() -> dict:
     try:
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except Exception as e:
-        print(f"❌ Failed to load api_keys.json: {e}")
+        print(f"Failed to load api_keys.json: {e}")
         return {}
 
 def get_gemini_key() -> str | None:

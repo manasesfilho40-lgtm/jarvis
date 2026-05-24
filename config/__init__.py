@@ -1,16 +1,15 @@
-# config/__init__.py
-import json, os
-from pathlib import Path
-
-_CONFIG_PATH = Path(__file__).parent / "api_keys.json"
+from core.utils import get_api_key, get_api_key_safe
 
 def get_config() -> dict:
-    with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return {"gemini_api_key": get_api_key()}
 
 def get_os() -> str:
     """Returns: 'windows' | 'mac' | 'linux'"""
-    return get_config().get("os_system", "windows").lower()
+    try:
+        config = get_config()
+        return config.get("os_system", "windows").lower()
+    except Exception:
+        return "windows"
 
 def is_windows() -> bool: return get_os() == "windows"
 def is_mac()     -> bool: return get_os() == "mac"
