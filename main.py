@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 import threading
@@ -6,6 +7,8 @@ import json
 import sys
 import traceback
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Fix Windows console encoding (cp1252 can't handle emojis)
 if sys.platform == "win32":
@@ -73,16 +76,19 @@ from plugins.plugin_manager import get_plugin_manager
 
 clap_detector = None
 
-def _run_geopolitics_refresh() -> str:
+def _run_geopolitics_refresh(ui_instance=None) -> str:
     """Triggers a geopolitics news refresh and pushes to UI."""
     try:
         news_json = fetch_geopolitics_news()
-        ui.update_geopolitics(news_json)
+        target_ui = ui_instance or globals().get("ui")
+        if target_ui:
+            target_ui.update_geopolitics(news_json)
         return "Notícias geopolíticas atualizadas com sucesso."
     except Exception as e:
         return f"Erro ao atualizar notícias: {e}"
 
 from core.utils import BASE_DIR, API_CONFIG_PATH, get_api_key as _get_api_key
+from core.quota_tracker import record_request, get_usage
 
 PROMPT_PATH     = BASE_DIR / "core" / "prompt.txt"
 LIVE_MODEL          = "models/gemini-3.1-flash-live-preview"
@@ -180,11 +186,16 @@ class JarvisLive:
 
         if text == "start lead generation prospecting":
             self.ui.write_log("SYS: Iniciando busca automatizada de leads no Apify...")
-            res = apify_leads(parameters={
-                "actor_id": "compass/crawler-google-places",
-                "input_data": {"searchStringsArray": ["advogados em São Paulo"], "maxResults": 10}
-            })
-            self.ui.write_log(f"SYS: {res}")
+            def _run_apify():
+                try:
+                    res = apify_leads(parameters={
+                        "actor_id": "compass/crawler-google-places",
+                        "input_data": {"searchStringsArray": ["advogados em São Paulo"], "maxResults": 10}
+                    })
+                    self.ui.write_log(f"SYS: {res}")
+                except Exception as e:
+                    self.ui.write_log(f"SYS: Erro no Apify: {e}")
+            threading.Thread(target=_run_apify, daemon=True).start()
             return
 
         if text == "stop lead generation prospecting":
@@ -239,14 +250,14 @@ class JarvisLive:
             self._night_mode = True
             self.ui.muted = True
             self.ui.set_state("NIGHT_MODE")
-            self.ui.write_log("🌙 Modo Noturno ativado. JARVIS em repouso.")
+            self.ui.write_log("[Moon] Modo Noturno ativado. JARVIS em repouso.")
             return
 
         if text == "night_mode_off":
             self._night_mode = False
             self.ui.muted = False
             self.ui.set_state("LISTENING")
-            self.ui.write_log("🌙 Modo Noturno desativado. JARVIS operacional.")
+            self.ui.write_log("[Moon] Modo Noturno desativado. JARVIS operacional.")
             return
             
         if not self._loop or not self.session:
@@ -261,7 +272,7 @@ class JarvisLive:
             self.ui.write_log(f"JARVIS: Senhor, o sistema está offline. Executando '{text}' {brain_desc}...")
             from agent.task_queue import get_queue, TaskPriority
             def ui_speak(msg):
-                print(f"[JARVIS] 🗣️ {msg}")
+                print(f"[JARVIS] [*]️ {msg}")
                 self.ui.write_log(f"JARVIS: {msg}")
                 def _run():
                     try:
@@ -308,22 +319,22 @@ class JarvisLive:
             self._night_mode = True
             self.ui.muted = True
             self.ui.set_state("NIGHT_MODE")
-            self.ui.write_log("🌙 Modo Noturno ativado.")
+            self.ui.write_log("[Moon] Modo Noturno ativado.")
             return "Modo Noturno ativado. Ficarei em silêncio."
         elif action == "off":
             self._night_mode = False
             self.ui.muted = False
             self.ui.set_state("LISTENING")
-            self.ui.write_log("🌙 Modo Noturno desativado.")
+            self.ui.write_log("[Moon] Modo Noturno desativado.")
             return "Modo Noturno desativado. Estou de volta."
         elif action == "schedule" and args.get("hour") is not None:
             self._night_mode_schedule = (args["hour"], args.get("minute", 0))
-            self.ui.write_log(f"🌙 Modo Noturno agendado para {args['hour']:02d}:{args.get('minute',0):02d}.")
+            self.ui.write_log(f"[Moon] Modo Noturno agendado para {args['hour']:02d}:{args.get('minute',0):02d}.")
             return f"Modo Noturno agendado para {args['hour']:02d}:{args.get('minute',0):02d}."
         return "Ação inválida. Use action='on', 'off' ou 'schedule'."
 
     def _handle_read_screen(self, args: dict) -> str:
-        self.ui.write_log("👁 Lendo a tela...")
+        self.ui.write_log("[*] Lendo a tela...")
         try:
             import mss, pytesseract
             from PIL import Image
@@ -351,7 +362,7 @@ class JarvisLive:
                 if api_key:
                     quota = get_usage(api_key, "gemini-2.5-flash")
                     if quota["pct"] > 80:
-                        results.append(f"⚠ Cota da API em {quota['pct']}%, restam {quota['limit'] - quota['used']} requisições.")
+                        results.append(f"[!] Cota da API em {quota['pct']}%, restam {quota['limit'] - quota['used']} requisições.")
             except Exception:
                 pass
             import time
@@ -363,15 +374,78 @@ class JarvisLive:
                     self._night_mode = True
                     self.ui.muted = True
                     self.ui.set_state("NIGHT_MODE")
-                    results.append("🌙 Modo Noturno ativado automaticamente.")
+                    results.append("[Moon] Modo Noturno ativado automaticamente.")
                 elif now.hour == (h + 7) % 24 and now.minute == m and self._night_mode:
                     self._night_mode = False
                     self.ui.muted = False
                     self.ui.set_state("LISTENING")
-                    results.append("🌅 Modo Noturno desativado. Bom dia, senhor.")
+                    results.append("[Sun] Modo Noturno desativado. Bom dia, senhor.")
         except Exception as e:
             results.append(f"Erro na verificação: {e}")
         return "; ".join(results) if results else "Nada a reportar."
+
+    def _handle_shopping_search(self, args: dict) -> str:
+        try:
+            pm = get_plugin_manager()
+            plugin = pm.get_plugin("shopping")
+            if not plugin or not plugin.enabled:
+                return "Plugin de compras não encontrado ou desabilitado."
+            query = args.get("query", "")
+            if not query:
+                return "Nenhum produto informado para busca."
+            store = args.get("store", "all")
+            free_shipping = args.get("free_shipping", True)
+            promotion = args.get("promotion", True)
+            max_price = args.get("max_price")
+            if isinstance(free_shipping, str):
+                free_shipping = free_shipping.lower() in ("true", "1", "yes")
+            if isinstance(promotion, str):
+                promotion = promotion.lower() in ("true", "1", "yes")
+            if max_price is not None:
+                max_price = float(max_price)
+            if store == "all":
+                import asyncio
+                result = asyncio.run(plugin.search_all_stores(query, max_price, free_shipping, promotion))
+            else:
+                import asyncio
+                result = asyncio.run(plugin.search_products(query, max_price, free_shipping, promotion, store))
+            if isinstance(result, dict):
+                lines = []
+                for store_name, products in result.items():
+                    lines.append(f"\n--- {store_name.upper()} ---")
+                    if isinstance(products, list):
+                        for p in products[:5]:
+                            if "error" in p:
+                                lines.append(f"  Erro: {p['error']}")
+                                continue
+                            price_str = f"R$ {p['price']:.2f}" if p['price'] else "N/D"
+                            old_str = f" (de R$ {p['old_price']:.2f})" if p.get('old_price') else ""
+                            ship = " [Frete Grátis]" if p.get('free_shipping') else ""
+                            promo = " [PROMOÇÃO]" if p.get('has_discount') or p.get('promotion_tag') else ""
+                            rating = f" ★{p['rating']}" if p.get('rating') else ""
+                            lines.append(f"  • {p['title']}{rating}")
+                            lines.append(f"    {price_str}{old_str}{ship}{promo}")
+                            lines.append(f"    {p.get('url', '')}")
+                return "\n".join(lines)
+            elif isinstance(result, list):
+                lines = []
+                for p in result[:10]:
+                    if "error" in p:
+                        lines.append(f"  Erro: {p['error']}")
+                        continue
+                    price_str = f"R$ {p['price']:.2f}" if p['price'] else "N/D"
+                    old_str = f" (de R$ {p['old_price']:.2f})" if p.get('old_price') else ""
+                    ship = " [Frete Grátis]" if p.get('free_shipping') else ""
+                    promo = " [PROMOÇÃO]" if p.get('has_discount') or p.get('promotion_tag') else ""
+                    rating = f" ★{p['rating']}" if p.get('rating') else ""
+                    lines.append(f"  • {p['title']}{rating}")
+                    lines.append(f"    {price_str}{old_str}{ship}{promo}")
+                    lines.append(f"    {p.get('url', '')}")
+                return "\n".join(lines)
+            return str(result)
+        except Exception as e:
+            logger.error(f"Shopping search error: {e}")
+            return f"Erro ao buscar produtos: {e}"
 
     def set_speaking(self, value: bool):
         global clap_detector
@@ -470,7 +544,7 @@ class JarvisLive:
         name = fc.name
         args = dict(fc.args or {})
 
-        print(f"[JARVIS] 🔧 {name}  {args}")
+        print(f"[JARVIS] [*] {name}  {args}")
         self.ui.set_state("THINKING")
 
         if name == "save_memory":
@@ -479,7 +553,7 @@ class JarvisLive:
             value    = args.get("value", "")
             if key and value:
                 memory.store(f"{category}/{key}", value)
-                print(f"[Memory] 💾 save_memory: {category}/{key} = {value}")
+                print(f"[Memory] [*] save_memory: {category}/{key} = {value}")
             if not self.ui.muted:
                 self.ui.set_state("LISTENING")
             return types.FunctionResponse(
@@ -531,7 +605,9 @@ class JarvisLive:
                 "refresh_geopolitics": lambda: _run_geopolitics_refresh(),
                 "night_mode": lambda: self._handle_night_mode(args),
                 "read_screen": lambda: self._handle_read_screen(args),
-                "proactive_check": lambda: self._handle_proactive_check()
+                "proactive_check": lambda: self._handle_proactive_check(),
+                "shopping_search": lambda: self._handle_shopping_search(args),
+                "deep_research": lambda: __import__("actions.deep_research", fromlist=["deep_research_action"]).deep_research_action(args, self.ui)
             }
 
             if name in executor_tools:
@@ -561,6 +637,14 @@ class JarvisLive:
                 self.speak("Goodbye, sir.")
                 def _shutdown():
                     import time, os
+                    try:
+                        from core.startup import shutdown_plugins
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(shutdown_plugins())
+                        loop.close()
+                    except Exception:
+                        pass
                     time.sleep(1)
                     os._exit(0)
                 threading.Thread(target=_shutdown, daemon=True).start()
@@ -598,7 +682,7 @@ class JarvisLive:
         if not self.ui.muted:
             self.ui.set_state("LISTENING")
 
-        print(f"[JARVIS] 📤 {name} → {str(result)[:80]}")
+        print(f"[JARVIS] [*] {name} -> {str(result)[:80]}")
         return types.FunctionResponse(
             id=fc.id, name=name,
             response={"result": result}
@@ -625,7 +709,7 @@ class JarvisLive:
                         pass
 
     async def _listen_audio(self):
-        print("[JARVIS] 🎤 Mic started")
+        print("[JARVIS] [*] Mic started")
         global clap_detector
         if clap_detector:
             try:
@@ -663,7 +747,7 @@ class JarvisLive:
             while True:
                 should_be_active = True
                 if should_be_active and stream is None:
-                    print("[JARVIS] 🎤 Mic stream opening...")
+                    print("[JARVIS] [*] Mic stream opening...")
                     stream = sd.InputStream(
                         samplerate=SEND_SAMPLE_RATE,
                         channels=CHANNELS,
@@ -672,20 +756,20 @@ class JarvisLive:
                         callback=callback,
                     )
                     stream.start()
-                    print("[JARVIS] 🎤 Mic stream open")
+                    print("[JARVIS] [*] Mic stream open")
                 elif not should_be_active and stream is not None:
-                    print("[JARVIS] 🎤 Mic stream closing...")
+                    print("[JARVIS] [*] Mic stream closing...")
                     try:
                         stream.stop()
                         stream.close()
                     except Exception as e:
                         print(f"[JARVIS] Error closing stream: {e}")
                     stream = None
-                    print("[JARVIS] 🎤 Mic stream closed")
+                    print("[JARVIS] [*] Mic stream closed")
                 
                 await asyncio.sleep(0.1)
         except Exception as e:
-            print(f"[JARVIS] ❌ Mic: {e}")
+            print(f"[JARVIS] [!] Mic: {e}")
             raise
         finally:
             if stream is not None:
@@ -701,7 +785,7 @@ class JarvisLive:
                     print(f"[JARVIS] Error restarting clap detector: {e}")
 
     async def _receive_audio(self):
-        print("[JARVIS] 👂 Recv started")
+        print("[JARVIS] [*] Recv started")
         out_buf, in_buf = [], []
 
         try:
@@ -762,12 +846,12 @@ class JarvisLive:
                             function_responses=fn_responses
                         )
         except Exception as e:
-            print(f"[JARVIS] ❌ Recv: {e}")
+            print(f"[JARVIS] [!] Recv: {e}")
             traceback.print_exc()
             raise
 
     async def _play_audio(self):
-        print("[JARVIS] 🔊 Play started")
+        print("[JARVIS] [*] Play started")
 
         stream = sd.RawOutputStream(
             samplerate=RECEIVE_SAMPLE_RATE,
@@ -808,7 +892,7 @@ class JarvisLive:
 
                 await asyncio.to_thread(stream.write, chunk)
         except Exception as e:
-            print(f"[JARVIS] ❌ Play: {e}")
+            print(f"[JARVIS] [!] Play: {e}")
             raise
         finally:
             self.set_speaking(False)
@@ -816,7 +900,7 @@ class JarvisLive:
             stream.close()
 
     async def _run_local_loop(self):
-        print("[JARVIS] 🦙 Modo local (Ollama + Whisper + TTS)")
+        print("[JARVIS] [*] Modo local (Ollama + Whisper + TTS)")
         self.ui.set_state("LISTENING")
         self.ui.write_log("SYS: JARVIS rodando 100% local (Ollama + Whisper)")
 
@@ -878,7 +962,7 @@ class JarvisLive:
         def local_speak(msg):
             self.set_speaking(True)
             self.ui.write_log(f"JARVIS: {msg[:200]}")
-            print(f"[JARVIS Local] 🗣️ {msg[:200]}")
+            print(f"[JARVIS Local] [*]️ {msg[:200]}")
             self._local_tts_sync(msg)
             self.set_speaking(False)
 
@@ -914,7 +998,7 @@ class JarvisLive:
 
                         if text:
                             self.ui.write_log(f"Você: {text}")
-                            print(f"[LocalSTT] → {text}")
+                            print(f"[LocalSTT] -> {text}")
                             get_queue().submit(
                                 goal=text,
                                 priority=TaskPriority.HIGH,
@@ -972,7 +1056,7 @@ class JarvisLive:
                     api_key=_get_api_key(),
                     http_options={"api_version": "v1beta"}
                 )
-                print("[JARVIS] 🔌 Connecting to Gemini Live...")
+                print("[JARVIS] [*] Connecting to Gemini Live...")
                 self.ui.set_state("THINKING")
                 config = self._build_config()
 
@@ -982,14 +1066,14 @@ class JarvisLive:
                 ):
                     self.session        = session
                     self._loop          = asyncio.get_event_loop()
-                    self.audio_in_queue = asyncio.Queue()
+                    self.audio_in_queue = asyncio.Queue(maxsize=100)
                     self.out_queue      = asyncio.Queue(maxsize=10)
                     self._turn_done_event = asyncio.Event()
 
-                    print("[JARVIS] ✅ Gemini Live connected.")
+                    print("[JARVIS] [OK] Gemini Live connected.")
                     retry_count = 0
                     try:
-                        record_request(_get_api_key(), "gemini-3.1-flash-live-preview")
+                        record_request(_get_api_key(), LIVE_MODEL.replace("models/", ""))
                     except Exception:
                         pass
                     if self.ui.muted:
@@ -1014,7 +1098,7 @@ class JarvisLive:
                         await asyncio.sleep(1)
 
             except Exception as e:
-                print(f"[JARVIS] ⚠️ {e}")
+                print(f"[JARVIS] [!]️ {e}")
                 traceback.print_exc()
                 self.session = None
                 self._loop = None
@@ -1058,13 +1142,14 @@ def _start_web_server():
 
 def _poll_web_commands(ui):
     import time
-    from ui import _global_command_queue
+    from core.utils import global_command_queue
+
     while True:
-        time.sleep(0.5)
-        while _global_command_queue:
-            cmd = _global_command_queue.pop(0)
+        while global_command_queue:
+            cmd = global_command_queue.pop(0)
             if ui.on_text_command:
                 ui.on_text_command(cmd)
+        time.sleep(0.5)
 
 def main():
     import shutil
@@ -1073,6 +1158,14 @@ def main():
     if not config_path.exists() and example_path.exists():
         shutil.copy(example_path, config_path)
         print("[JARVIS] api_keys.json criado a partir do exemplo. Configure sua chave Gemini em config/api_keys.json")
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            saved_key = json.load(f).get("gemini_api_key", "")
+        if saved_key in ("", "YOUR_GEMINI_API_KEY"):
+            print("[JARVIS] ATENCAO: Configure uma chave Gemini valida em config/api_keys.json")
+    except Exception:
+        pass
     
     try:
         from memory.obsidian_manager import ensure_vault
@@ -1103,13 +1196,13 @@ def main():
         threading.Thread(target=_poll_web_commands, args=(ui,), daemon=True).start()
 
         def activate_jarvis_via_claps():
-            print("[JARVIS] 👏 Palmas detectadas! Ativando sistema...")
-            # Play activation sound
-            import winsound
-            try:
-                winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
-            except:
-                pass
+            print("[JARVIS] [*] Palmas detectadas! Ativando sistema...")
+            if sys.platform == "win32":
+                import winsound
+                try:
+                    winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
+                except Exception:
+                    pass
             
             # Unmute and show UI
             ui.muted = False
@@ -1162,12 +1255,12 @@ def main():
                                     jarvis._night_mode = True
                                     ui.muted = True
                                     ui.set_state("NIGHT_MODE")
-                                    ui.write_log("🌙 Modo Noturno ativado automaticamente.")
+                                    ui.write_log("[Moon] Modo Noturno ativado automaticamente.")
                                 elif now.hour == (h + 7) % 24 and now.minute == m and jarvis._night_mode:
                                     jarvis._night_mode = False
                                     ui.muted = False
                                     ui.set_state("LISTENING")
-                                    ui.write_log("🌅 Bom dia, senhor. Modo Noturno desativado.")
+                                    ui.write_log("[Sun] Bom dia, senhor. Modo Noturno desativado.")
                         except Exception:
                             pass
                         time.sleep(60)
@@ -1176,16 +1269,16 @@ def main():
 
                 asyncio.run(jarvis.run())
             except Exception as e:
-                with open("crash_trace.txt", "w", encoding="utf-8") as f:
+                with open(str(BASE_DIR / "crash_trace.txt"), "w", encoding="utf-8") as f:
                     traceback.print_exc(file=f)
                 raise
             except KeyboardInterrupt:
-                print("\n🔴 Shutting down...")
+                print("\n[!] Shutting down...")
 
         threading.Thread(target=runner, daemon=True).start()
         ui.root.mainloop()
     except Exception as e:
-        with open("crash_trace.txt", "w", encoding="utf-8") as f:
+        with open(str(BASE_DIR / "crash_trace.txt"), "w", encoding="utf-8") as f:
             traceback.print_exc(file=f)
         raise
 

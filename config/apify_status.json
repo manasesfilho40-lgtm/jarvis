@@ -29,11 +29,16 @@
       "status": "error",
       "details": "Failed after 2 retries: Actor was not found",
       "updated_at": "2026-05-23 19:27:26"
+    },
+    {
+      "status": "running",
+      "details": "Actor: compass/crawler-google-places, Query: {'searchStringsArray': ['lojas streetwear São Paulo', 'lojas de roupas casuais São Paulo', 'lojas de camisas masculinas São Paulo', 'lojas de streetwear Brasil', 'lojas de roupa casual masculina Brasil'], 'maxResults': 100}",
+      "updated_at": "2026-05-26 13:38:39"
     }
   ],
   "current": {
-    "status": "error",
-    "details": "Failed after 2 retries: Actor was not found",
-    "updated_at": "2026-05-23 19:27:26"
+    "status": "running",
+    "details": "Actor: compass/crawler-google-places, Query: {'searchStringsArray': ['lojas streetwear São Paulo', 'lojas de roupas casuais São Paulo', 'lojas de camisas masculinas São Paulo', 'lojas de streetwear Brasil', 'lojas de roupa casual masculina Brasil'], 'maxResults': 100}",
+    "updated_at": "2026-05-26 13:38:39"
   }
 }

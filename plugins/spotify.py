@@ -90,8 +90,8 @@ $wshell.SendKeys('{cmd}')
     async def is_running(self) -> bool:
         try:
             result = subprocess.run(
-                "tasklist /FI \"IMAGENAME eq Spotify.exe\" /NH",
-                capture_output=True, text=True, shell=True, timeout=5,
+                ["tasklist", "/FI", "IMAGENAME eq Spotify.exe", "/NH"],
+                capture_output=True, text=True, timeout=5,
             )
             return "Spotify.exe" in result.stdout
         except Exception:
@@ -99,7 +99,7 @@ $wshell.SendKeys('{cmd}')
 
     async def launch(self) -> str:
         if self._spotify_path and os.path.exists(self._spotify_path):
-            subprocess.Popen([self._spotify_path], shell=True)
+            subprocess.Popen([self._spotify_path])
             return "Spotify launched"
         return "Spotify not found"
 

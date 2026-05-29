@@ -560,11 +560,9 @@ ACTION_MAP: dict[str, callable] = {
     "open_run":            open_run,
     "dark_mode":           dark_mode,
     "toggle_wifi":         toggle_wifi,
-    "restart":             restart_computer,
-    "shutdown":            shutdown_computer,
 }
 
-_DANGEROUS_ACTIONS = {"restart", "shutdown"}
+_DANGEROUS_ACTIONS: set[str] = set()
 
 
 

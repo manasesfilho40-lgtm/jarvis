@@ -73,12 +73,10 @@ class BlobNode(QWidget):
         for i in range(pts):
             p1 = points[i]
             p2 = points[(i+1)%pts]
-            # control points for cubic bezier (rough approximation for smooth curve)
-            # we want continuous tangents. A simple way is a spline.
-            # Here we just use a simplified approach: smooth curves between points.
-            path.quadTo(p1, (p1.x()+p2.x())/2, (p1.y()+p2.y())/2)
+            mid = QPointF((p1.x()+p2.x())/2, (p1.y()+p2.y())/2)
+            path.quadTo(p1, mid)
         # close the loop smoothly
-        path.quadTo(points[-1], points[0].x(), points[0].y())
+        path.quadTo(points[-1], points[0])
         
         # Fill
         if self.is_center:

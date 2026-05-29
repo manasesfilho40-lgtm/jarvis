@@ -11,7 +11,7 @@ class LocalSTT:
             print(f"[LocalSTT] Whisper {model_size} pronto (device: {self.model.device})")
         except Exception as e:
             print(f"[LocalSTT] Erro ao carregar {model_size}: {e}")
-            print(f"[LocalSTT] Tentando device=cpu...")
+            print("[LocalSTT] Tentando device=cpu...")
             self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
             print(f"[LocalSTT] Whisper {model_size} pronto (cpu)")
 

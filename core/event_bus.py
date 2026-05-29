@@ -7,6 +7,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import Enum
+import threading
 from typing import Any, Callable, Coroutine, Optional
 
 logger = logging.getLogger("event_bus")
@@ -159,6 +160,7 @@ class EventBus:
         self._max_history = 1000
         self._stats: defaultdict[str, int] = defaultdict(int)
         self._logger = logging.getLogger("event_bus")
+        self._emit_lock = threading.Lock()
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
@@ -212,9 +214,10 @@ class EventBus:
                         else:
                             loop.run_until_complete(handler(event))
                     except RuntimeError:
-                        self._thread_pool.submit(self._run_async_sync, handler, event)
+                        threading.Thread(target=self._run_async_sync, args=(handler, event), daemon=True).start()
                 else:
-                    handler(event)
+                    with self._emit_lock:
+                        self._thread_pool.submit(handler, event)
             except Exception as e:
                 self._logger.error(f"Handler for {event_type.value} failed: {e}")
 
@@ -317,9 +320,6 @@ class EventBus:
 
     def __repr__(self):
         return f"EventBus(events={len(self._history)}, subscribers={self.get_subscriber_count()})"
-
-
-import threading
 
 
 _event_bus_instance = None

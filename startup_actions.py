@@ -1,24 +1,14 @@
-import sys
-import time
-import builtins
+import logging
 import subprocess
 from actions.open_app import open_app
 
-def print(*args, **kwargs):
-    if sys.stdout is None:
-        return
-    try:
-        builtins.print(*args, **kwargs)
-    except Exception:
-        pass
+logger = logging.getLogger("startup_actions")
 
 def main():
-    print("[Startup] Running automatic actions...")
-    
-    # 1. Open Claude Desktop App
+    logger.info("Running automatic actions...")
     open_app({"app_name": "Claude"})
-    
-    print("[Startup] Automatic actions completed.")
+    logger.info("Automatic actions completed.")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

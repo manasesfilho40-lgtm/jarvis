@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -134,7 +135,7 @@ class CommandValidator:
         )
 
     def confirm(self, command: str, tool: str = ""):
-        cache_key = f"{tool}:{command[:50]}"
+        cache_key = f"{tool}:{command}"
         self._confirmation_history[cache_key] = time.time()
 
     def validate_shell_command(self, command: str) -> CommandValidation:

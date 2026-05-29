@@ -353,7 +353,7 @@ class WorkflowEngine:
         try:
             from vision.screen_analyzer import get_analyzer
             analyzer = get_analyzer()
-            analysis = analyzer.capture_screen()
+            analysis = analyzer.capture(monitor=monitor)
             context["last_capture"] = analysis
             return {"captured": True, "monitor": monitor}
         except Exception as e:
@@ -363,8 +363,9 @@ class WorkflowEngine:
         try:
             from vision.screen_analyzer import get_analyzer
             analyzer = get_analyzer()
-            analysis = analyzer.analyze_screen(detect_text=step.params.get("detect_text", True))
-            summary = f"Screen analysis: {analysis.text_length if hasattr(analysis, 'text_length') else 0} chars"
+            analysis = analyzer.analyze()
+            text_len = len(analysis.full_text) if hasattr(analysis, 'full_text') else 0
+            summary = f"Screen analysis: {text_len} chars"
             context["analysis_summary"] = summary
             context["screen_analysis"] = analysis
             return {"summary": summary}

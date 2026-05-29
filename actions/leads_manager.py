@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import threading
 from pathlib import Path
@@ -251,9 +252,90 @@ def clear_leads(status: str = "all") -> int:
     print(f"[LeadsManager] Cleared {count} leads (status: {status}).")
     return count
 
+def system_dashboard() -> dict:
+    """Returns a comprehensive system status dashboard."""
+    status = {"crm": {}, "apify": {}, "scripts": {}, "system": {}}
+
+    # CRM stats
+    try:
+        status["crm"] = get_crm_stats()
+    except Exception as e:
+        status["crm"]["error"] = str(e)
+
+    # Apify scrape status
+    try:
+        from actions.apify_leads import get_scrape_status
+        scrape = get_scrape_status()
+        cur = scrape.get("current", {})
+        status["apify"] = {
+            "status": cur.get("status", "idle"),
+            "details": cur.get("details", ""),
+            "updated_at": cur.get("updated_at", ""),
+            "history_count": len(scrape.get("history", []))
+        }
+    except Exception as e:
+        status["apify"]["error"] = str(e)
+
+    # Scripts
+    try:
+        scripts_dir = _base_dir() / "memory" / "scripts"
+        script_files = list(scripts_dir.glob("*_script.json")) if scripts_dir.exists() else []
+        status["scripts"] = {
+            "total": len(script_files),
+            "names": [f.stem.replace("_script", "") for f in script_files]
+        }
+    except Exception as e:
+        status["scripts"]["error"] = str(e)
+
+    # System
+    status["system"] = {
+        "python_version": os.sys.version.split()[0],
+        "module_dir": str(_base_dir())
+    }
+
+    return status
+
+
+def format_dashboard(status: dict) -> str:
+    """Formats dashboard dict as a human-readable string."""
+    lines = ["=== JARVIS SYSTEM DASHBOARD ===\n"]
+
+    crm = status.get("crm", {})
+    lines.append("--- CRM ---")
+    lines.append(f"  Novos: {crm.get('new_count', '?')}")
+    lines.append(f"  Contactados: {crm.get('used_count', '?')}")
+    lines.append(f"  Total: {crm.get('total_count', '?')}")
+    lines.append(f"  Última importação: {crm.get('last_imported', 'N/A')}")
+    lines.append(f"  Último contato: {crm.get('last_contacted', 'N/A')}")
+
+    apify = status.get("apify", {})
+    lines.append("\n--- Apify Scraping ---")
+    lines.append(f"  Status: {apify.get('status', '?')}")
+    lines.append(f"  Detalhes: {apify.get('details', 'N/A')}")
+    lines.append(f"  Última atualização: {apify.get('updated_at', 'N/A')}")
+    lines.append(f"  Histórico: {apify.get('history_count', 0)} execuções")
+
+    scripts = status.get("scripts", {})
+    lines.append(f"\n--- Scripts de Negociação ---")
+    lines.append(f"  Carregados: {scripts.get('total', 0)}")
+    for name in scripts.get("names", []):
+        lines.append(f"    - {name}")
+
+    sysinfo = status.get("system", {})
+    lines.append(f"\n--- Sistema ---")
+    lines.append(f"  Python: {sysinfo.get('python_version', '?')}")
+    lines.append(f"  Diretório: {sysinfo.get('module_dir', '?')}")
+
+    lines.append("\n==============================")
+    return "\n".join(lines)
+
 def manage_crm(parameters: dict) -> str:
     """Main entry point for CRM operations callable by Jarvis."""
     action = parameters.get("action", "stats")
+
+    if action == "dashboard":
+        status = system_dashboard()
+        return format_dashboard(status)
 
     if action == "stats":
         stats = get_crm_stats()

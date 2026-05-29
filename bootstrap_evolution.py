@@ -5,9 +5,12 @@ Context Engine, Reasoning Engine, Skills, Embeddings)
 without modifying existing code.
 """
 import asyncio
+import json
 import logging
+import os
 import sys
 import threading
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
 logger = logging.getLogger("bootstrap")
@@ -89,8 +92,13 @@ def bootstrap(ui=None, headless: bool = False):
 
     # Register OpenAI provider if key available
     try:
-        api_keys = getattr(pm, '_config', None) or {}
-        openai_key = getattr(pm, '_openai_key', None) or ""
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+        if not openai_key:
+            config_path = Path(__file__).resolve().parent / "config" / "api_keys.json"
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    openai_key = cfg.get("openai_api_key", "")
         if openai_key:
             from providers.openai_provider import create_openai_provider
             openai_prov = create_openai_provider(api_key=openai_key)

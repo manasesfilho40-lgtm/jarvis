@@ -50,8 +50,8 @@ class GeminiProvider(BaseProvider):
             result = self._call_api(prompt, system)
             text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
             latency = (time.time() - start) * 1000
-            tokens_in = sum(len(str(p)) for p in result.get("usageMetadata", {}).get("promptTokenCount", 0))
-            tokens_out = result.get("usageMetadata", {}).get("candidatesTokenCount", 0)
+            tokens_in = result.get("usageMetadata", {}).get("promptTokenCount", 0) or 0
+            tokens_out = result.get("usageMetadata", {}).get("candidatesTokenCount", 0) or 0
             self._record_call(latency, tokens_in, tokens_out)
             return ProviderResponse(
                 text=text, model=self.config.model, provider=ProviderType.GEMINI,

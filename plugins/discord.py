@@ -38,7 +38,6 @@ class DiscordPlugin(BasePlugin):
                 name="discord",
                 version="1.0.0",
                 description="Discord integration for JARVIS",
-                hooks=["on_message", "on_command"],
             )
         super().__init__(manifest)
         self._bot: Optional[DiscordBot] = None

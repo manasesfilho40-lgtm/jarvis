@@ -22,7 +22,7 @@ _APP_ALIASES: dict[str, dict[str, str]] = {
     "chrome":             {"Windows": "chrome",                  "Darwin": "Google Chrome",        "Linux": "google-chrome"},
     "google chrome":      {"Windows": "chrome",                  "Darwin": "Google Chrome",        "Linux": "google-chrome"},
     "firefox":            {"Windows": "firefox",                 "Darwin": "Firefox",              "Linux": "firefox"},
-    "edge":               {"Windows": "brave",                   "Darwin": "Microsoft Edge",       "Linux": "microsoft-edge"},
+    "edge":               {"Windows": "msedge",                  "Darwin": "Microsoft Edge",       "Linux": "microsoft-edge"},
     "brave":              {"Windows": "brave",                   "Darwin": "Brave Browser",        "Linux": "brave-browser"},
     "safari":             {"Windows": "brave",                   "Darwin": "Safari",               "Linux": "firefox"},
     "opera":              {"Windows": "opera",                   "Darwin": "Opera",                "Linux": "opera"},
@@ -157,8 +157,7 @@ def _launch_windows(app_name: str) -> bool:
     if shutil.which(app_name) or shutil.which(app_name.split(".")[0]):
         try:
             subprocess.Popen(
-                app_name,
-                shell=True,
+                [app_name],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -169,7 +168,11 @@ def _launch_windows(app_name: str) -> bool:
 
     if ":" in app_name:
         try:
-            subprocess.Popen(f"start {app_name}", shell=True)
+            subprocess.Popen(
+                ["cmd", "/c", "start", app_name],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             time.sleep(1.0)
             return True
         except Exception:
@@ -432,7 +435,7 @@ def _handle_play(app_name: str, query: str = ""):
                 
                 time.sleep(0.5)
                 pyautogui.press("enter") # Submit search
-                print(f"[open_app] Typed search query, waiting for results...")
+                print("[open_app] Typed search query, waiting for results...")
                 time.sleep(3.5)  # Wait for results to fully load
                 
                 # Step 3: Double-click the large 'Melhor Resultado' (Top Result) card
@@ -446,7 +449,7 @@ def _handle_play(app_name: str, query: str = ""):
                 # Single robust double-click on the first song row (Track 1)
                 # Track 1 is at (550, 530) absolute. This starts playback without toggling pause!
                 pyautogui.doubleClick(550, 530)
-                print(f"[open_app] Double-clicked Track 1 at (550, 530)")
+                print("[open_app] Double-clicked Track 1 at (550, 530)")
                 time.sleep(1.0)
                 
                 # Step 4: Minimize Spotify

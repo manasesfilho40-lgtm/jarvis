@@ -1,6 +1,7 @@
 #computer_control.py
 import io
 import json
+import platform
 import re
 import string
 import subprocess
@@ -40,7 +41,9 @@ def _load_config() -> dict:
         return {}
 
 def _get_os() -> str:
-    return _load_config().get("os_system", "windows").lower()
+    _os_map = {"Windows": "windows", "Darwin": "mac", "Linux": "linux"}
+    real_os = _os_map.get(platform.system(), "windows")
+    return _load_config().get("os_system", real_os).lower()
 
 
 def _get_api_key() -> str:
@@ -147,7 +150,7 @@ def _type(text: str, interval: float = 0.03) -> str:
     _require_pyautogui()
     time.sleep(0.3)
     pyautogui.typewrite(text, interval=interval)
-    return f"Typed: {text[:60]}{'…' if len(text) > 60 else ''}"
+    return f"Typed: {text[:60]}{'...' if len(text) > 60 else ''}"
 
 
 def _smart_type(text: str, clear_first: bool = True) -> str:
@@ -160,10 +163,10 @@ def _smart_type(text: str, clear_first: bool = True) -> str:
         pyperclip.copy(text)
         time.sleep(0.1)
         pyautogui.hotkey("ctrl", "v")
-        return f"Smart-typed (clipboard): {text[:60]}{'…' if len(text) > 60 else ''}"
+        return f"Smart-typed (clipboard): {text[:60]}{'...' if len(text) > 60 else ''}"
 
     pyautogui.typewrite(text, interval=0.04)
-    return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
+    return f"Smart-typed: {text[:60]}{'...' if len(text) > 60 else ''}"
 
 
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
@@ -198,14 +201,14 @@ def _scroll(direction: str = "down", amount: int = 3) -> str:
 def _move(x: int, y: int, duration: float = 0.3) -> str:
     _require_pyautogui()
     pyautogui.moveTo(x, y, duration=duration)
-    return f"Mouse → ({x}, {y})"
+    return f"Mouse -> ({x}, {y})"
 
 
 def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
     _require_pyautogui()
     pyautogui.moveTo(x1, y1, duration=0.2)
     pyautogui.dragTo(x2, y2, duration=duration, button="left")
-    return f"Dragged ({x1},{y1}) → ({x2},{y2})"
+    return f"Dragged ({x1},{y1}) -> ({x2},{y2})"
 
 
 def _clipboard_get() -> str:
@@ -222,7 +225,7 @@ def _clipboard_paste(text: str) -> str:
         time.sleep(0.1)
         _require_pyautogui()
         pyautogui.hotkey("ctrl", "v")
-        return f"Pasted: {text[:60]}{'…' if len(text) > 60 else ''}"
+        return f"Pasted: {text[:60]}{'...' if len(text) > 60 else ''}"
     return "pyperclip not available"
 
 
@@ -246,7 +249,8 @@ def _focus_window(title: str) -> str:
 
     if os_name == "windows":
         try:
-            script = f'(New-Object -ComObject WScript.Shell).AppActivate("{title}")'
+            safe_title = title.replace('"', '`"')
+            script = f'(New-Object -ComObject WScript.Shell).AppActivate("{safe_title}")'
             subprocess.run(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
                 capture_output=True, timeout=5,
@@ -257,9 +261,10 @@ def _focus_window(title: str) -> str:
             return f"focus_window (Windows) failed: {e}"
 
     if os_name == "mac":
+        safe_title = title.replace('"', '\\"')
         script = (
             f'tell application "System Events" to '
-            f'set frontmost of (first process whose name contains "{title}") to true'
+            f'set frontmost of (first process whose name contains "{safe_title}") to true'
         )
         try:
             subprocess.run(
@@ -299,7 +304,7 @@ def _focus_window(title: str) -> str:
 def _screen_find(description: str) -> tuple[int, int] | None:
     api_key = _get_api_key()
     if not api_key:
-        print("[ComputerControl] ⚠️ No API key for screen_find")
+        print("[ComputerControl] [!]️ No API key for screen_find")
         return None
 
     try:
@@ -338,7 +343,7 @@ def _screen_find(description: str) -> tuple[int, int] | None:
             return int(match.group(1)), int(match.group(2))
 
     except Exception as e:
-        print(f"[ComputerControl] ⚠️ screen_find failed: {e}")
+        print(f"[ComputerControl] [!]️ screen_find failed: {e}")
 
     return None
 
@@ -481,7 +486,7 @@ def computer_control(
         if action == "random_data":
             dt     = params.get("type", "name")
             result = _random_data(dt)
-            print(f"[ComputerControl] 🎲 random {dt} → {result}")
+            print(f"[ComputerControl] [*] random {dt} -> {result}")
             return result
 
         if action == "user_data":
@@ -490,11 +495,11 @@ def computer_control(
             value   = profile.get(field, "")
             if not value:
                 value = _random_data(field)
-                print(f"[ComputerControl] ⚠️ No '{field}' in memory, using random: {value}")
+                print(f"[ComputerControl] [!]️ No '{field}' in memory, using random: {value}")
             return value
 
         return f"Unknown action: '{action}'"
 
     except Exception as e:
-        print(f"[ComputerControl] ❌ {action}: {e}")
+        print(f"[ComputerControl] [!] {action}: {e}")
         return f"computer_control '{action}' failed: {e}"

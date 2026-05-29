@@ -1,5 +1,6 @@
 #desktop.py
 import os
+import re
 import sys
 import json
 import shutil
@@ -43,48 +44,39 @@ def _build_sandbox() -> dict:
         "len": len, "str": str, "int": int, "float": float,
         "bool": bool, "list": list, "dict": dict, "tuple": tuple,
         "range": range, "enumerate": enumerate, "sorted": sorted,
-        "isinstance": isinstance, "hasattr": hasattr, "getattr": getattr,
+        "isinstance": isinstance,
         "max": max, "min": min, "sum": sum, "abs": abs,
         "zip": zip, "map": map, "filter": filter,
     }
 
     sandbox = {
         "__builtins__": safe_builtins,
-        "Path": Path,
         "time": time,
-        "shutil": type("shutil", (), {
-            "copy2":      shutil.copy2,
-            "copytree":   shutil.copytree,
-            "disk_usage": shutil.disk_usage,
-        })(),
-        "os_path": os.path,  
     }
-
-    if _PYAUTOGUI:
-        sandbox["pyautogui"] = pyautogui
-
-    if _OS == "Windows":
-        try:
-            import ctypes
-            import winreg
-            sandbox["ctypes"] = ctypes
-            sandbox["winreg"] = type("winreg", (), {
-                # Sadece okuma
-                "OpenKey":      winreg.OpenKey,
-                "QueryValueEx": winreg.QueryValueEx,
-                "HKEY_CURRENT_USER": winreg.HKEY_CURRENT_USER,
-            })()
-        except ImportError:
-            pass
 
     return sandbox
 
+
+_BLOCKED_PATTERNS = [
+    r"__subclasses__\s*\(", r"__globals__", r"__code__", r"__closure__",
+    r"__mro__", r"__bases__", r"sys\._getframe", r"sys\.exc_info",
+    r"os\.system", r"subprocess", r"builtins\.exec", r"builtins\.eval",
+    r"builtins\.open", r"builtins\.__import__", r"__import__\s*\(",
+]
+
+def _is_code_safe(code: str) -> bool:
+    for pattern in _BLOCKED_PATTERNS:
+        if re.search(pattern, code):
+            return False
+    return True
 
 def _execute_generated_code(code: str, player=None) -> str:
     if not code or code.strip() == "UNSAFE":
         return "This action cannot be performed safely."
 
-    # Kod temizleme
+    if not _is_code_safe(code):
+        return "Blocked: code contains prohibited patterns."
+
     if code.startswith("```"):
         lines = code.split("\n")
         code  = "\n".join(lines[1:-1]).strip()
@@ -336,7 +328,7 @@ def organize_desktop(mode: str = "by_type") -> str:
             continue
 
         shutil.move(str(item), str(new_path))
-        moved.append(f"{item.name} → {folder_name}/")
+        moved.append(f"{item.name} -> {folder_name}/")
 
     result = f"Desktop organized ({mode}): {len(moved)} files moved."
     if moved:
@@ -359,14 +351,14 @@ def list_desktop() -> str:
                 count = len(list(item.iterdir()))
             except PermissionError:
                 count = "?"
-            items.append(f"📁 {item.name}/ ({count} items)")
+            items.append(f"[DIR] {item.name}/ ({count} items)")
         else:
             size     = item.stat().st_size
             size_str = (
                 f"{size / 1024:.1f} KB" if size < 1024 * 1024
                 else f"{size / 1024 / 1024:.1f} MB"
             )
-            items.append(f"📄 {item.name} ({size_str})")
+            items.append(f"[FILE] {item.name} ({size_str})")
 
     if not items:
         return "Desktop is empty."

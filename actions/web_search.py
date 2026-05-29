@@ -14,8 +14,11 @@ API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)["gemini_api_key"]
+    except (KeyError, FileNotFoundError, json.JSONDecodeError):
+        return ""
 
 
 def _gemini_search(query: str) -> str:
@@ -29,9 +32,10 @@ def _gemini_search(query: str) -> str:
     )
 
     text = ""
-    for part in response.candidates[0].content.parts:
-        if hasattr(part, "text") and part.text:
-            text += part.text
+    if response.candidates and response.candidates[0].content.parts:
+        for part in response.candidates[0].content.parts:
+            if hasattr(part, "text") and part.text:
+                text += part.text
 
     text = text.strip()
     if not text:

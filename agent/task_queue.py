@@ -62,13 +62,13 @@ class TaskQueue:
             name="AgentTaskQueue"
         )
         self._worker_thread.start()
-        print("[TaskQueue] ✅ Started")
+        print("[TaskQueue] [OK] Started")
 
     def stop(self) -> None:
         self._running = False
         with self._condition:
             self._condition.notify_all()
-        print("[TaskQueue] 🔴 Stopped")
+        print("[TaskQueue] [!] Stopped")
 
     def submit(
         self,
@@ -94,7 +94,7 @@ class TaskQueue:
             self._tasks[task_id] = task
             self._condition.notify()
 
-        print(f"[TaskQueue] 📥 Task queued: [{task_id}] {goal[:60]}")
+        print(f"[TaskQueue] [*] Task queued: [{task_id}] {goal[:60]}")
         return task_id
 
     def cancel(self, task_id: str) -> bool:
@@ -108,7 +108,7 @@ class TaskQueue:
 
             task.cancel_flag.set()
             task.status = TaskStatus.CANCELLED
-            print(f"[TaskQueue] 🚫 Task cancelled: [{task_id}]")
+            print(f"[TaskQueue] [!] Task cancelled: [{task_id}]")
             return True
 
     def get_status(self, task_id: str) -> dict | None:
@@ -194,9 +194,9 @@ class TaskQueue:
                 try:
                     task.on_complete(task.task_id, result)
                 except Exception as e:
-                    print(f"[TaskQueue] ⚠️ on_complete callback error: {e}")
+                    print(f"[TaskQueue] [!]️ on_complete callback error: {e}")
 
-            print(f"[TaskQueue] ✅ Completed: [{task.task_id}]")
+            print(f"[TaskQueue] [OK] Completed: [{task.task_id}]")
 
         except Exception as e:
             with self._condition:
@@ -204,7 +204,7 @@ class TaskQueue:
                 task.error  = str(e)
                 self._active_count -= 1
                 self._condition.notify()
-            print(f"[TaskQueue] ❌ Failed: [{task.task_id}] {e}")
+            print(f"[TaskQueue] [!] Failed: [{task.task_id}] {e}")
 
         with self._condition:
             self._condition.notify()

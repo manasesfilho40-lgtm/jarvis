@@ -11,7 +11,12 @@ from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEnginePage
 
-_global_command_queue: list = []
+from core.utils import global_command_queue as _global_command_queue
+try:
+    from web_server import _push_log, _push_state, _push_model_info as _ws_push
+except ImportError:
+    _push_log = _push_state = _ws_push = None
+
 class RootWrapper(QObject):
     def __init__(self, window, app):
         super().__init__()
@@ -116,9 +121,17 @@ class JarvisUI(QObject):
         html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jarvis_ui.html"))
         self.web_view.load(QUrl.fromLocalFile(html_path))
         
+        # Center window on screen
+        from PyQt6.QtGui import QGuiApplication
+        screen = QGuiApplication.primaryScreen().availableGeometry()
+        win_geo = self.root_win.frameGeometry()
+        win_geo.moveCenter(screen.center())
+        self.root_win.move(win_geo.topLeft())
+
         # Display window
         self.root_win.show()
         self.root_win.raise_()
+        self.root_win.activateWindow()
 
     def _on_load_finished(self, ok):
         self._page_loaded = True
@@ -179,7 +192,17 @@ class JarvisUI(QObject):
                     self.on_text_command(cmd)
 
     def wait_for_api_key(self):
-        pass
+        from core.utils import BASE_DIR
+        import json
+        config_path = BASE_DIR / "config" / "api_keys.json"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                key = json.load(f).get("gemini_api_key", "")
+            if not key or key == "YOUR_GEMINI_API_KEY":
+                print("[JARVIS] API key nao configurada. Use o campo de texto para inserir sua chave Gemini.")
+                self.write_log("SYS: Insira sua chave Gemini no campo de texto para configurar.")
+        except Exception as e:
+            print(f"[JARVIS] Nao foi possivel ler api_keys.json: {e}")
 
     def write_log(self, text):
         is_user = False
@@ -232,22 +255,22 @@ class JarvisUI(QObject):
         else:
             js_code = f"addLog({str(is_user).lower()}, {json.dumps(clean_msg)});"
             self.web_view.page().runJavaScript(js_code)
-        try:
-            from web_server import _push_log
-            _push_log(is_user, clean_msg)
-        except Exception:
-            pass
+        if _push_log:
+            try:
+                _push_log(is_user, clean_msg)
+            except Exception:
+                pass
 
     def _safe_set_state(self, state):
         self._current_state = state
         if self._page_loaded:
             js_code = f"updateState({json.dumps(state)});"
             self.web_view.page().runJavaScript(js_code)
-        try:
-            from web_server import _push_state
-            _push_state(state)
-        except Exception:
-            pass
+        if _push_state:
+            try:
+                _push_state(state)
+            except Exception:
+                pass
 
     def _safe_set_volume(self, vol):
         self._current_volume = vol
@@ -272,11 +295,11 @@ class JarvisUI(QObject):
         if self._page_loaded:
             js_code = f"updateModelInfo({info_json});"
             self.web_view.page().runJavaScript(js_code)
-        try:
-            from web_server import _push_model_info as _ws_push
-            _ws_push(info_json)
-        except Exception:
-            pass
+        if _ws_push:
+            try:
+                _ws_push(info_json)
+            except Exception:
+                pass
 
     def update_quota(self, quota_json_str):
         self.quota_signal.emit(quota_json_str)

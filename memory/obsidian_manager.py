@@ -1,9 +1,30 @@
+import json
 import os
 import re
 from datetime import datetime
 from pathlib import Path
 
-VAULT_DIR = Path("C:/Users/T-GAMER/Documents/Obsidian/JARVIS-Vault")
+try:
+    from core.utils import BASE_DIR
+except ImportError:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+_DEFAULT_VAULT = BASE_DIR / "memory" / "obsidian_vault"
+
+def _get_vault_dir() -> Path:
+    try:
+        if _CONFIG_PATH.exists():
+            with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            custom_path = cfg.get("obsidian_vault_path", "")
+            if custom_path:
+                return Path(custom_path)
+    except Exception:
+        pass
+    return _DEFAULT_VAULT
+
+VAULT_DIR = _get_vault_dir()
 CONVERSATIONS_FILE = VAULT_DIR / "Conversas.md"
 FACTS_FILE = VAULT_DIR / "Fatos do Usuário.md"
 

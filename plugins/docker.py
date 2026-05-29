@@ -202,13 +202,3 @@ class DockerPlugin(BasePlugin):
         except DockerException as e:
             logger.error(f"Failed to get Docker info: {e}")
             return None
-
-
-manifest = PluginManifest(
-    name="docker",
-    version="1.0.0",
-    description="Docker containers management - list, start, stop, logs, stats",
-        "docker_ps", "docker_start", "docker_stop", "docker_restart",
-        "docker_logs", "docker_stats", "docker_exec", "docker_info",
-    ],
-)

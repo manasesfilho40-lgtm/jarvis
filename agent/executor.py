@@ -300,7 +300,7 @@ def _run_generated_code(description: str, speak: Callable | None = None) -> str:
             f.write(code)
             tmp_path = f.name
 
-        print(f"[Executor] 🐍 Running generated code: {tmp_path}")
+        print(f"[Executor] [*] Running generated code: {tmp_path}")
 
         result = subprocess.run(
             [sys.executable, tmp_path],
@@ -349,7 +349,7 @@ def _inject_context(params: dict, tool: str, step_results: dict, goal: str = "")
                 combined = "\n\n---\n\n".join(all_results)
                 translated = _translate_to_goal_language(combined, goal)
                 params["content"] = translated
-                print(f"[Executor] 💉 Injected + translated content")
+                print("[Executor] [*] Injected + translated content")
 
     return params
 
@@ -378,7 +378,7 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         model = genai.GenerativeModel("gemini-2.5-flash")
 
         target_lang = _detect_language(goal)
-        print(f"[Executor] 🌐 Translating to: {target_lang}")
+        print(f"[Executor] [*] Translating to: {target_lang}")
 
         prompt = (
             f"You are a professional translator. "
@@ -392,10 +392,10 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         )
         response = model.generate_content(prompt)
         translated = response.text.strip()
-        print(f"[Executor] ✅ Translation done ({target_lang})")
+        print(f"[Executor] [OK] Translation done ({target_lang})")
         return translated
     except Exception as e:
-        print(f"[Executor] ⚠️ Translation failed: {e}")
+        print(f"[Executor] [!]️ Translation failed: {e}")
         return content
 
 

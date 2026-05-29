@@ -19,8 +19,11 @@ GEMINI_MODEL       = "gemini-2.5-flash"
 
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)["gemini_api_key"]
+    except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+        raise RuntimeError(f"Failed to read API key: {e}")
 
 
 def _get_gemini(model: str = GEMINI_MODEL):
@@ -93,10 +96,10 @@ def _take_screenshot() -> Path | None:
         screenshot_path = Path.home() / "Desktop" / f"jarvis_debug_{int(time.time())}.png"
         screenshot = pyautogui.screenshot()
         screenshot.save(str(screenshot_path))
-        print(f"[Code] 📸 Screenshot: {screenshot_path}")
+        print(f"[Code] [*] Screenshot: {screenshot_path}")
         return screenshot_path
     except Exception as e:
-        print(f"[Code] ⚠️ Screenshot failed: {e}")
+        print(f"[Code] [!]️ Screenshot failed: {e}")
         return None
 
 
@@ -235,7 +238,7 @@ def _build(description, language, output_path, args, timeout, speak=None, player
 
     try:
         code, path = _write(description, lang, output_path, player)
-        print(f"[Code] ✅ Written: {path}")
+        print(f"[Code] [OK] Written: {path}")
     except Exception as e:
         msg = f"Não foi possível gerar o código inicial: {e}"
         if speak: speak(msg)
@@ -258,7 +261,7 @@ def _build(description, language, output_path, args, timeout, speak=None, player
             if speak: speak(msg)
             return f"{msg}\n\nOutput:\n{last_output}"
 
-        print(f"[Code] ⚠️ Error on attempt {attempt}, fixing...")
+        print(f"[Code] [!]️ Error on attempt {attempt}, fixing...")
         if player:
             player.write_log(f"[Code] Fixing (attempt {attempt})...")
 
@@ -284,7 +287,7 @@ def _write_action(description, language, output_path, player) -> str:
         player.write_log("[Code] Writing code...")
     try:
         code, path = _write(description, language, output_path, player)
-        print(f"[Code] ✅ Written: {path}")
+        print(f"[Code] [OK] Written: {path}")
         return f"Code written. Saved to: {path}\n\nPreview:\n{_preview(code)}"
     except Exception as e:
         return f"Could not generate code: {e}"
@@ -322,7 +325,7 @@ Updated code:"""
         return f"Could not edit code: {e}"
 
     status = _save_file(Path(file_path), edited)
-    print(f"[Code] ✅ Edited: {file_path}")
+    print(f"[Code] [OK] Edited: {file_path}")
     return f"File edited. {status}\n\nPreview:\n{_preview(edited)}"
 
 
@@ -407,7 +410,7 @@ Optimized code:"""
         save_path = _resolve_save_path(output_path, lang)
 
     status = _save_file(save_path, optimized)
-    print(f"[Code] ✅ Optimized: {save_path}")
+    print(f"[Code] [OK] Optimized: {save_path}")
 
     original_lines  = len(code.splitlines())
     optimized_lines = len(optimized.splitlines())
@@ -415,7 +418,7 @@ Optimized code:"""
 
     return (
         f"Code optimized. {status}\n"
-        f"Lines: {original_lines} → {optimized_lines} "
+        f"Lines: {original_lines} -> {optimized_lines} "
         f"({'−' if diff > 0 else '+'}{abs(diff)} lines)\n\n"
         f"Preview:\n{_preview(optimized)}"
     )
@@ -426,7 +429,7 @@ def _screen_debug_action(description, file_path, player, speak=None) -> str:
     if player:
         player.write_log("[Code] Taking screenshot for analysis...")
 
-    print("[Code] 📸 Capturing screen for debug...")
+    print("[Code] [*] Capturing screen for debug...")
 
 
     screenshot_path = _take_screenshot()
@@ -438,7 +441,7 @@ def _screen_debug_action(description, file_path, player, speak=None) -> str:
     if file_path:
         file_content, err = _read_file(file_path)
         if err:
-            print(f"[Code] ⚠️ Could not read file: {err}")
+            print(f"[Code] [!]️ Could not read file: {err}")
 
     try:
         from google import genai
@@ -478,7 +481,7 @@ Be specific and actionable. If you see an error message, quote it exactly."""
         )
 
         analysis = response.text.strip()
-        print(f"[Code] ✅ Screen analysis complete")
+        print("[Code] [OK] Screen analysis complete")
 
         try:
             screenshot_path.unlink()
@@ -492,8 +495,8 @@ Be specific and actionable. If you see an error message, quote it exactly."""
                 fixed_code = code_match.group(1).strip()
                 save_path  = Path(file_path)
                 _save_file(save_path, fixed_code)
-                analysis += f"\n\n✅ Fixed code has been saved to: {file_path}"
-                print(f"[Code] ✅ Fixed code saved: {file_path}")
+                analysis += f"\n\n[OK] Fixed code has been saved to: {file_path}"
+                print(f"[Code] [OK] Fixed code saved: {file_path}")
 
         return analysis
 

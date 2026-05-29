@@ -1,4 +1,11 @@
 {
   "routing_mode": "gemini",
-  "ollama_model": "qwen2.5:7b"
+  "ollama_model": "qwen2.5:7b",
+  "gemini_model": "gemini-2.5-flash",
+  "gemini_live_model": "models/gemini-2.0-flash-live",
+  "claude_model": "claude-sonnet-4-20250514",
+  "whisper_model": "base",
+  "tts_engine": "edge",
+  "max_tokens": 8192,
+  "temperature": 0.7
 }

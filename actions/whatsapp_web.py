@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import asyncio
 import json
@@ -113,22 +114,39 @@ _KNOWN_COUNTRY_CODES = {
 }
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            key = data.get("gemini_api_key", "")
+            if not key:
+                keys = data.get("gemini_api_keys", [])
+                key = keys[0] if keys else ""
+            return key
+    except (FileNotFoundError, json.JSONDecodeError, IndexError, KeyError):
+        return ""
 
 def _normalize_phone(phone_str: str) -> str:
+    if not phone_str:
+        return ""
     digits = "".join(c for c in phone_str if c.isdigit())
     if not digits:
         return ""
 
-    if len(digits) <= 11 and not digits.startswith("55"):
-        digits = "55" + digits
+    if digits.startswith("55") and len(digits) >= 12:
         return digits
 
-    for code_len in (3, 2, 1):
-        potential_code = digits[:code_len]
-        if potential_code in _KNOWN_COUNTRY_CODES:
-            return digits
+    had_plus = phone_str.strip().startswith("+")
+    if had_plus:
+        for code_len in (3, 2, 1):
+            if len(digits) > code_len and digits[:code_len] in _KNOWN_COUNTRY_CODES:
+                return digits
+
+    br_ddd = digits[:2]
+    if len(digits) in (10, 11) and br_ddd.isdigit() and 11 <= int(br_ddd) <= 99:
+        return "55" + digits
+
+    if len(digits) <= 11:
+        return "55" + digits
 
     return digits
 
@@ -185,11 +203,20 @@ class WhatsAppWeb:
     async def start(self):
         self.playwright = await async_playwright().start()
 
-        user_data_dir = os.path.join(os.environ["LOCALAPPDATA"], "BraveSoftware", "Brave-Browser", "JarvisProfile")
-
-        brave_path = os.path.join(os.environ["PROGRAMFILES"], "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
-        if not os.path.exists(brave_path):
-            brave_path = os.path.join(os.environ["LOCALAPPDATA"], "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
+        _sn = platform.system()
+        if _sn == "Windows":
+            localappdata = os.environ.get("LOCALAPPDATA", os.path.expanduser("~\\AppData\\Local"))
+            progfiles = os.environ.get("PROGRAMFILES", "C:\\Program Files")
+            user_data_dir = os.path.join(localappdata, "BraveSoftware", "Brave-Browser", "JarvisProfile")
+            brave_path = os.path.join(progfiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
+            if not os.path.exists(brave_path):
+                brave_path = os.path.join(localappdata, "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
+        elif _sn == "Darwin":
+            user_data_dir = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "BraveSoftware", "Brave-Browser", "JarvisProfile")
+            brave_path = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+        else:
+            user_data_dir = os.path.join(os.path.expanduser("~"), ".config", "brave", "JarvisProfile")
+            brave_path = "brave"
 
         try:
             self.context = await self.playwright.chromium.launch_persistent_context(
@@ -372,7 +399,7 @@ class WhatsAppWeb:
                 from actions.negotiation_script import generate_negotiation_script
                 generate_negotiation_script(
                     product=product_name,
-                    price="R$ 150",
+                    price="R$ 10/foto (pacote 15 fotos por R$ 120)",
                     max_discount="20%",
                     tone="casual"
                 )
@@ -382,21 +409,36 @@ class WhatsAppWeb:
 
             if not script:
                 script = {
-                    "opening_message": f"Olá! Sou designer freelancer especializado em anúncios de alta conversão. Posso criar criativos para {product_name}. Posso te mostrar exemplos?",
+                    "opening_message": f"Opa, tudo certo? Vi que sua loja vende online — já pensou em ter anúncios com fotos mais profissionais pros seus produtos? Trabalho com criação de criativos que aumentam conversão.",
                     "objection_handling": {
-                        "nao_temos_interesse": "Sem problemas! Só queria deixar meu contato para o caso de precisarem no futuro. Valeu!",
-                        "ja_temos_agencia": "Show! Trabalho muito como braço de apoio pra agências também. Se precisar de uma força com criativos rápidos, conta comigo.",
-                        "preco_alto": "Entendo total! Crio os layouts sob demanda e o retorno paga rápido. O que acha de testar uma única peça por R$ 120?"
+                        "nao_temos_interesse": "Tranquilo! Se mudar de ideia, meu contato tá aqui. Sucesso com a marca!",
+                        "ja_temos_agencia": "Show! Atuo como braço de apoio pra agências também, atendendo demandas pontuais. Se um dia precisarem de reforço, é só chamar.",
+                        "preco_alto": "Entendo! Que tal testarmos com uma única arte primeiro, sem compromisso? Se gostar do resultado, a gente monta um pacote depois.",
+                        "sem_verba_agora": "Sem problema! Vou deixar meu contato aqui. Quando tiver verba, me chama que faço um preço especial pra lojas parceiras.",
+                        "preciso_consultar": "Claro, sem pressa! Enquanto isso, posso te mandar alguns exemplos de anúncios que já criei pra lojas do mesmo segmento?",
+                        "manda_email": "Mando sim! Mas se puder, me fala qual tipo de peça vc mais precisa (story, feed, catálogo) pra eu preparar algo direcionado.",
+                        "nao_confio": "Super entendo! Quer dar uma olhada no meu portfólio? Já criei anúncios pra lojas como [X] e [Y] que aumentaram as vendas em [Z]%",
+                        "ja_temos_fornecedor": "Que bom! Se um dia precisar de um segundo fornecedor ou de ajuda com picos de demanda, tô aqui."
                     },
-                    "counter_proposal": "Que tal começarmos com uma peça teste para você ver o resultado?",
-                    "closing_message": "Ótimo! Posso começar ainda hoje. Vou precisar só do logo e referências.",
-                    "metadata": {"product": product_name, "price": "R$ 150", "max_discount": "20%"}
+                    "counter_proposal": "Que tal testar com 1 arte primeiro por R$ 50? Se gostar, fechamos um pacote depois.",
+                    "closing_message": "Perfeito! Me envia o logo e as referências de estilo que já preparo a primeira arte em até 24h.",
+                    "follow_up": "Opa, tudo bem? Passei aqui porque criei um modelo novo que pode se encaixar bem no seu tipo de produto. Quer dar uma olhada rápida?",
+                    "urgency_triggers": {
+                        "scarcity": "Essa semana ainda tenho 2 vagas pra projetos novos, depois só mês que vem.",
+                        "social_proof": "Essa semana fechei com 3 lojas do ramo e todas tão vendo resultado em vendas já nos primeiros dias."
+                    },
+                    "metadata": {"product": product_name, "price": "R$ 10/foto (15 por R$ 120)", "max_discount": "20%"}
                 }
         return script
 
-    async def guard_loop(self, target, message=None, player=None, timeout_minutes=60):
-        """Sends a message (if provided) then stays in the chat monitoring for replies."""
+    async def guard_loop(self, target, message=None, player=None, timeout_minutes=60, product_name=None):
+        """Sends a message (if provided) then stays in the chat monitoring for replies.
+        If product_name is provided, automatically responds to lead replies using the negotiation script."""
         self._conversation_history = []
+
+        script = None
+        if product_name:
+            script = await self._get_or_create_script(product_name, player)
 
         if player:
             player.write_log(f"SYS: Modo guarda ativado para {target}. Monitorando por {timeout_minutes} minutos...")
@@ -406,7 +448,7 @@ class WhatsAppWeb:
                 await self.send_message(message)
                 self._conversation_history.append({"role": "assistant", "content": message})
                 if player:
-                    player.write_log(f"SYS: Mensagem enviada. Aguardando resposta do lead...")
+                    player.write_log("SYS: Mensagem enviada. Aguardando resposta do lead...")
             except Exception as e:
                 print(f"[WhatsApp] Guard send error: {e}")
                 if player:
@@ -454,9 +496,18 @@ class WhatsAppWeb:
                             except Exception:
                                 pass
 
-                            if reply_count == 1:
+                            if script:
                                 if player:
-                                    player.write_log("JARVIS: Primeira resposta detectada! Mantendo monitoramento...")
+                                    player.write_log("JARVIS: Gerando resposta automática...")
+                                reply = await self._generate_reply(newest, script)
+                                await self.send_message(reply)
+                                self._conversation_history.append({"role": "assistant", "content": reply})
+                                if player:
+                                    player.write_log(f"JARVIS: Resposta automática enviada.")
+                            else:
+                                if reply_count == 1:
+                                    if player:
+                                        player.write_log("JARVIS: Primeira resposta detectada! Mantendo monitoramento...")
                         else:
                             last_seen_msg = newest
 
@@ -474,13 +525,13 @@ class WhatsAppWeb:
 
         opening = script.get("opening_message", "Bom dia, preciso falar com o responsável pelo marketing ou pelo comercial — é sobre uma proposta de divulgação pra empresa.")
         if player:
-            player.write_log(f"SYS: Enviando mensagem padrão de contato inicial...")
+            player.write_log("SYS: Enviando mensagem padrão de contato inicial...")
 
         try:
             await self.send_message(opening)
             self._conversation_history.append({"role": "assistant", "content": opening})
             if player:
-                player.write_log(f"SYS: Mensagem inicial enviada! Aguardando respostas do lead...")
+                player.write_log("SYS: Mensagem inicial enviada! Aguardando respostas do lead...")
         except Exception as e:
             print(f"[WhatsApp] Error sending opening message: {e}")
             if player:
@@ -518,13 +569,13 @@ class WhatsAppWeb:
                     self._conversation_history.append({"role": "user", "content": incoming})
                     print(f"[WhatsApp] New message: {incoming}")
                     if player:
-                        player.write_log(f"LEADS: Nova mensagem recebida...")
+                        player.write_log("LEADS: Nova mensagem recebida...")
 
                     reply = await self._generate_reply(incoming, script)
                     print(f"[WhatsApp] Replying: {reply}")
 
                     if player:
-                        player.write_log(f"JARVIS: Digitando resposta...")
+                        player.write_log("JARVIS: Digitando resposta...")
 
                     await self.send_message(reply)
                     self._conversation_history.append({"role": "assistant", "content": reply})
@@ -558,12 +609,20 @@ class WhatsAppWeb:
 
         cycle_count = 0
         max_cycles = 100
+        stats = {"enviadas": 0, "respondidas": 0, "invalidos": 0, "erros": 0, "pulos": 0}
 
         while not self._stop and cycle_count < max_cycles:
             if not await self._is_browser_alive():
                 if player:
-                    player.write_log("ERR: Browser fechado. Encerrando prospecção.")
-                return
+                    player.write_log("ERR: Browser fechado. Tentando reabrir...")
+                try:
+                    await self.start()
+                    if player:
+                        player.write_log("SYS: Browser reaberto com sucesso.")
+                except Exception as e:
+                    if player:
+                        player.write_log(f"ERR: Falha ao reabrir browser: {e}")
+                    return
 
             try:
                 with get_db_lock():
@@ -576,7 +635,7 @@ class WhatsAppWeb:
 
             if not active_leads:
                 if player:
-                    player.write_log("SYS: Todos os leads prospectados! Aguardando novos leads...")
+                    player.write_log(f"SYS: Todos os leads prospectados! Stats: {stats['enviadas']} enviadas, {stats['respondidas']} respondidas, {stats['invalidos']} inválidos, {stats['erros']} erros.")
                 await asyncio.sleep(30)
                 cycle_count += 1
                 continue
@@ -593,7 +652,8 @@ class WhatsAppWeb:
                 raw_phone = lead.get("phoneUnformatted", "")
                 lead_phone = _normalize_phone(raw_phone)
 
-                if not lead_phone:
+                if not lead_phone or len(lead_phone) < 10:
+                    stats["pulos"] += 1
                     if player:
                         player.write_log(f"SYS: Lead {lead_name} sem telefone válido. Pulando...")
                     try:
@@ -604,14 +664,14 @@ class WhatsAppWeb:
                     continue
 
                 if player:
-                    player.write_log(f"SYS: Abrindo chat para: {lead_name} ({lead_phone[-10:]})...")
+                    player.write_log(f"SYS: ({leads_processed+1}/{len(active_leads)}) {lead_name} ({lead_phone[-8:]})...")
 
                 try:
                     await self.page.goto(f"https://web.whatsapp.com/send?phone={lead_phone}")
 
                     chat_loaded = False
                     invalid_detected = False
-                    for _ in range(20):
+                    for attempt in range(20):
                         if self._stop:
                             break
                         await self.check_and_dismiss_popups()
@@ -631,8 +691,9 @@ class WhatsAppWeb:
                         await asyncio.sleep(1)
 
                     if invalid_detected:
+                        stats["invalidos"] += 1
                         if player:
-                            player.write_log(f"SYS: Telefone inválido para {lead_name}. Pulando...")
+                            player.write_log(f"SYS: Telefone inválido. Pulando...")
                         invalid_popup = await self.page.query_selector("div[role='dialog']")
                         if invalid_popup:
                             ok_btn = await invalid_popup.query_selector("button")
@@ -643,21 +704,24 @@ class WhatsAppWeb:
                                 mark_as_used(raw_phone)
                         except Exception:
                             mark_as_used(raw_phone)
+                        await asyncio.sleep(3)
                         continue
 
                     if not chat_loaded:
+                        stats["erros"] += 1
                         if player:
-                            player.write_log(f"SYS: Timeout ao abrir chat de {lead_name}. Pulando...")
+                            player.write_log(f"SYS: Timeout ao abrir chat. Pulando...")
                         continue
 
-                    msgs = await self.get_last_messages(limit=1)
+                    msgs = await self.get_last_messages(limit=2)
 
                     if not msgs:
                         opening = script.get("opening_message", "Bom dia, preciso falar com o responsável pelo marketing ou pelo comercial — é sobre uma proposta de divulgação pra empresa.")
                         if player:
-                            player.write_log(f"SYS: Enviando proposta inicial para {lead_name}...")
+                            player.write_log(f"SYS: Enviando proposta...")
 
                         await self.send_message(opening)
+                        stats["enviadas"] += 1
 
                         try:
                             with get_db_lock():
@@ -666,68 +730,93 @@ class WhatsAppWeb:
                             mark_as_used(raw_phone)
 
                         if player:
-                            player.write_log(f"SYS: Lead {lead_name} prospectado com sucesso.")
+                            player.write_log(f"SYS: OK")
 
                     else:
-                        try:
-                            with get_db_lock():
-                                mark_as_used(raw_phone)
-                        except Exception:
-                            mark_as_used(raw_phone)
-
                         last_message_container = await self.page.query_selector_all(".message-out, .message-in")
                         if last_message_container:
                             last_container = last_message_container[-1]
                             classes = await last_container.evaluate("el => el.className")
 
                             if "message-in" in classes:
+                                stats["respondidas"] += 1
                                 last_msg = msgs[-1]
                                 if player:
-                                    player.write_log(f"LEADS: {lead_name} respondeu: '{last_msg[:30]}...'")
-                                    player.write_log(f"JARVIS: Formulando resposta...")
+                                    player.write_log(f"LEADS: Respondeu: '{last_msg[:40]}'")
 
                                 reply = await self._generate_reply(last_msg, script)
                                 await self.send_message(reply)
+                                stats["enviadas"] += 1
 
                                 if player:
-                                    player.write_log(f"JARVIS: Resposta enviada para {lead_name}.")
+                                    player.write_log(f"JARVIS: Respondido.")
 
                                 try:
                                     from actions.notifier import notify_client_reply
                                     notify_client_reply(f"Lead {lead_name} respondeu: {last_msg}")
                                 except Exception:
                                     pass
+
+                                try:
+                                    with get_db_lock():
+                                        mark_as_used(raw_phone)
+                                except Exception:
+                                    mark_as_used(raw_phone)
                             else:
                                 if player:
-                                    player.write_log(f"SYS: Aguardando retorno de {lead_name}...")
+                                    player.write_log(f"SYS: Já foi contactado. Pulando...")
+                                try:
+                                    with get_db_lock():
+                                        mark_as_used(raw_phone)
+                                except Exception:
+                                    mark_as_used(raw_phone)
 
                 except Exception as e:
+                    stats["erros"] += 1
                     print(f"[WhatsApp] Error processing lead {lead_name}: {e}")
                     if player:
-                        player.write_log(f"ERR: Falha ao processar lead {lead_name}: {e}")
+                        player.write_log(f"ERR: {e}")
 
                 leads_processed += 1
                 await asyncio.sleep(random.uniform(8, 15))
 
             if player:
-                player.write_log(f"SYS: Ciclo {cycle_count + 1} finalizado ({leads_processed} leads processados). Aguardando...")
+                player.write_log(f"SYS: Ciclo {cycle_count + 1} finalizado. Stats: {stats['enviadas']} enviadas, {stats['respondidas']} respostas, {stats['invalidos']} inválidos, {stats['erros']} erros.")
             await asyncio.sleep(random.uniform(25, 40))
             cycle_count += 1
 
         if player:
-            player.write_log(f"SYS: Prospecção encerrada após {cycle_count} ciclos.")
+            player.write_log(f"SYS: Prospecção encerrada após {cycle_count} ciclos. Final: {stats}")
 
     async def _generate_reply(self, message, script):
         msg_lower = message.lower().strip()
 
-        if any(x in msg_lower for x in ["não tenho interesse", "não temos interesse", "não quero", "sem interesse", "não obrigado", "não obrigada"]):
-            return script.get("objection_handling", {}).get("nao_temos_interesse", "Sem problemas! Só queria deixar meu contato para o caso de precisarem no futuro. Valeu!")
+        objection_map = {
+            "nao_temos_interesse": ["não tenho interesse", "não temos interesse", "não quero", "sem interesse", "não obrigado", "não obrigada", "dispenso"],
+            "ja_temos_agencia": ["já temos agência", "ja temos agencia", "já temos assessoria", "agência própria", "parceria fechada", "já trabalho com"],
+            "preco_alto": ["caro", "preço alto", "valor alto", "fora do orçamento", "não posso pagar", "muito caro", "muito dinheiro", "sai caro"],
+            "sem_verba_agora": ["agora não", "sem verba", "orçamento apertado", "mês que vem", "depois eu vejo", "num outro momento", "sem grana"],
+            "preciso_consultar": ["preciso consultar", "tenho que ver com", "falar com o", "preciso perguntar", "sócio", "parceiro", "decisão em conjunto"],
+            "manda_email": ["manda no email", "envia por email", "manda proposta", "orçamento por email", "enviar por email"],
+            "nao_confio": ["não conheço", "nunca ouvi falar", "primeira vez", "desconhecido", "golpe", "não confio"],
+            "ja_temos_fornecedor": ["já tenho fornecedor", "já temos fornecedor", "já fechei com", "já contratamos", "já tenho quem faz"],
+        }
 
-        if any(x in msg_lower for x in ["já temos agência", "ja temos agencia", "já temos assessoria", "agência própria", "parceria fechada"]):
-            return script.get("objection_handling", {}).get("ja_temos_agencia", "Show! Trabalho muito como braço de apoio pra agências também. Se precisar de uma força com criativos rápidos, conta comigo.")
+        for key, patterns in objection_map.items():
+            if any(x in msg_lower for x in patterns):
+                resposta = script.get("objection_handling", {}).get(key)
+                if resposta:
+                    return resposta
 
-        if any(x in msg_lower for x in ["caro", "preço alto", "valor alto", "fora do orçamento", "não posso pagar"]):
-            return script.get("objection_handling", {}).get("preco_alto", "Entendo total! Crio os layouts sob demanda e o retorno paga rápido. O que acha de testar uma única peça por R$ 120?")
+        fallbacks = {
+            "nao_temos_interesse": "Sem problemas! Só queria deixar meu contato pra quando precisarem. Sucesso com a marca!",
+            "ja_temos_agencia": "Show! Trabalho como braço de apoio pra agências também. Se um dia precisarem de reforço, é só chamar.",
+            "preco_alto": "Entendo! Que tal testarmos com uma arte primeiro, sem compromisso? Se gostar, a gente ajusta um pacote sob medida.",
+        }
+
+        for key, patterns in objection_map.items():
+            if any(x in msg_lower for x in patterns):
+                return fallbacks.get(key, "Entendo. Se quiser ver uns exemplos depois, meu contato tá aqui. Valeu!")
 
         try:
             api_key = _get_api_key()
@@ -742,29 +831,45 @@ class WhatsAppWeb:
                     history_lines.append(f"{role}: {msg['content']}")
                 history_context = "\nHistórico recente da conversa:\n" + "\n".join(history_lines) + "\n"
 
+            product_name = script.get('metadata', {}).get('product', 'Layouts de Anúncios')
+            base_price = script.get('metadata', {}).get('price', 'R$ 10/foto ou pacote 15 fotos por R$ 120')
+            max_discount = script.get('metadata', {}).get('max_discount', '20%')
+
+            urgency = script.get('urgency_triggers', {})
+            scarcity_text = urgency.get('scarcity', '')
+            social_proof_text = urgency.get('social_proof', '')
+
             prompt = f"""
-            Você é um designer gráfico freelancer brasileiro conversando de forma informal com um possível cliente no WhatsApp.
+            Você é um designer freelancer brasileiro conversando informalmente com um dono de loja de roupas no WhatsApp.
 
-            Objetivo: Negociar de forma natural e fechar o serviço de criação de anúncios de alta conversão.
-            Produto: {script.get('metadata', {}).get('product', 'Layouts de Anúncios')}
-            Preço Base: {script.get('metadata', {}).get('price', 'R$ 150')}
-            Desconto Máximo Permitido: {script.get('metadata', {}).get('max_discount', '20%')}
+            Produto: {product_name}
+            Preço Base: {base_price}
+            Desconto Máx: {max_discount}
 
-            Roteiro:
+            CONTEXTO DO ROTEIRO:
             - Contraposta: "{script.get('counter_proposal', '')}"
             - Fechamento: "{script.get('closing_message', '')}"
             {history_context}
-            Mensagem recebida do cliente: "{message}"
 
-            Diretrizes:
-            1. Seja EXTREMAMENTE conciso. Máximo 1-2 frases curtas.
-            2. Use tom casual brasileiro ('total', 'show', 'opa', 'blz', 'valeu').
-            3. NUNCA use frases formais de IA como 'Com certeza!', 'Entendo perfeitamente.'.
-            4. Se perguntarem preço, ancore em {script.get('metadata', {}).get('price', 'R$ 150')}, mas aplique desconto de até {script.get('metadata', {}).get('max_discount', '20%')} se hesitar.
-            5. Sempre termine com uma pergunta curta.
-            6. Considere o histórico da conversa para não repetir informações já ditas.
+            Mensagem do cliente: "{message}"
 
-            Responda APENAS com a mensagem exata para enviar, sem aspas ou explicações.
+            TÉCNICAS DE PERSUASÃO (use quando couber):
+            1. ESCASSEZ: "{scarcity_text}" (use se o cliente demonstrar interesse mas hesitar)
+            2. PROVA SOCIAL: "{social_proof_text}" (use se o cliente questionar resultado)
+            3. RECIPROCIDADE: Ofereça algo pequeno de graça primeiro (dica, arte teste)
+            4. ANCORAGEM: Sempre mostre o pacote cheio primeiro, depois a oferta menor
+            5. AUTORIDADE: Cite resultados de marcas que já atendeu
+
+            DIRETRIZES:
+            1. Seja EXTREMAMENTE conciso (máximo 2 frases curtas)
+            2. Tom casual: 'total', 'show', 'opa', 'blz', 'valeu', 'tranquilo'
+            3. NUNCA use frases genéricas de IA tipo 'Com certeza!', 'Entendo perfeitamente.'
+            4. Termine com pergunta curta que force resposta sim/não ou escolha
+            5. Se hesitar no preço, ofereça teste pequeno primeiro (não desconto grande)
+            6. Use o histórico pra não repetir informação
+            7. Se for follow-up sem resposta, seja útil (dê um benefício novo)
+
+            Responda APENAS a mensagem exata, sem aspas ou explicações.
             """
 
             response = client.models.generate_content(
@@ -778,7 +883,7 @@ class WhatsAppWeb:
 
         except Exception as e:
             print(f"[Gemini Negotiation Error] {e}. Usando fallback...")
-            return "Entendo total. Se quiser ver uns exemplos rápidos de anúncios que já criei para lojas parecidas, posso te mandar por aqui. O que acha?"
+            return "Entendo. Se quiser, posso te mandar exemplos de edições que já fiz. Trabalho com R$ 10 por foto ou pacote de 15 por R$ 120. O que acha?"
 
 async def _run_whatsapp_action(parameters, player):
     action = parameters.get("action")
@@ -804,8 +909,9 @@ async def _run_whatsapp_action(parameters, player):
 
         elif action == "guard":
             timeout = parameters.get("timeout_minutes", 60)
+            product = parameters.get("product")
             await wa.open_chat(target)
-            await wa.guard_loop(target, message=message, player=player, timeout_minutes=timeout)
+            await wa.guard_loop(target, message=message, player=player, timeout_minutes=timeout, product_name=product)
             return f"Guard mode ended for {target}."
     except asyncio.CancelledError:
         print("[WhatsApp] Action cancelled by user.")

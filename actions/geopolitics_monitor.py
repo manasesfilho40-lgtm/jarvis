@@ -153,7 +153,9 @@ def _try_fetch(api_key: str) -> dict | None:
         },
     )
 
-    raw = response.candidates[0].content.parts[0].text if response.candidates[0].content.parts else ""
+    raw = ""
+    if response.candidates and response.candidates[0].content.parts:
+        raw = response.candidates[0].content.parts[0].text or ""
     raw = raw.strip()
     if raw.startswith("```"):
         lines = raw.splitlines()

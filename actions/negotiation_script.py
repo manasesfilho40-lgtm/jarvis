@@ -12,8 +12,16 @@ SCRIPTS_DIR = BASE_DIR / "memory" / "scripts"
 API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            key = data.get("gemini_api_key", "")
+            if not key:
+                keys = data.get("gemini_api_keys", [])
+                key = keys[0] if keys else ""
+            return key
+    except (FileNotFoundError, json.JSONDecodeError, IndexError):
+        return ""
 
 def generate_negotiation_script(product, price, max_discount, tone):
     """
@@ -38,12 +46,23 @@ def generate_negotiation_script(product, price, max_discount, tone):
     
     Generate the following 5 parts:
     1. opening_message: Initial contact, asking if they sell online and introducing the value.
-    2. objection_handling: How to respond to "it's too expensive", "I'll think about it", "not interested".
+    2. objection_handling: An object with exactly these 8 keys (each is a short reply):
+       - "nao_temos_interesse": client says not interested
+       - "ja_temos_agencia": client already has an agency
+       - "preco_alto": client says it's too expensive
+       - "sem_verba_agora": client says no budget right now
+       - "preciso_consultar": client needs to consult someone else
+       - "manda_email": client asks to send via email
+       - "nao_confio": client doesn't know/trust you
+       - "ja_temos_fornecedor": client already has a supplier
     3. counter_proposal: A way to offer a discount (max {max_discount}) while maintaining value and urgency.
     4. closing_message: Message to send when interest is high to finalize the deal.
     5. follow_up: Message for when the client stops responding.
+    6. urgency_triggers: An object with keys:
+       - "scarcity": short message about limited availability
+       - "social_proof": short message about results from other clients
     
-    Return the response as a JSON object with these 5 keys.
+    Return the response as a JSON object with these 6 keys. objection_handling must be a JSON object with the 8 keys above.
     """
     
     response = client.models.generate_content(
@@ -60,7 +79,12 @@ def generate_negotiation_script(product, price, max_discount, tone):
         if raw.startswith("json"):
             raw = raw[4:]
         raw = raw.strip()
-    script_data = json.loads(raw)
+    
+    try:
+        script_data = json.loads(raw)
+    except json.JSONDecodeError:
+        return "Error: Gemini returned invalid JSON for the negotiation script."
+    
     script_data["metadata"] = {
         "product": product,
         "price": price,
@@ -71,8 +95,11 @@ def generate_negotiation_script(product, price, max_discount, tone):
     filename = f"{product.lower().replace(' ', '_')}_script.json"
     file_path = SCRIPTS_DIR / filename
     
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(script_data, f, indent=4, ensure_ascii=False)
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(script_data, f, indent=4, ensure_ascii=False)
+    except OSError as e:
+        return f"Error: Could not save script file: {e}"
     
     return f"Script generated and saved to {file_path}"
 

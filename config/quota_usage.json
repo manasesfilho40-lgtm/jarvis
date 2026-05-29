@@ -18,7 +18,21 @@
       "gemini-2.5-flash": 1
     },
     "AIzaSyBd": {
+      "gemini-2.5-flash": 7
+    }
+  },
+  "2026-05-26": {
+    "AIzaSyBd": {
+      "gemini-2.5-flash": 10
+    },
+    "AIzaSyAU": {
       "gemini-2.5-flash": 3
+    }
+  },
+  "2026-05-28": {
+    "AIzaSyAU": {
+      "gemini-3.1-flash-live-preview": 4,
+      "gemini-2.5-flash": 16
     }
   }
 }

@@ -13,9 +13,14 @@ app = FastAPI(title="JARVIS Mobile Bridge")
 command_queue = asyncio.Queue()
 ws_clients = set()
 
+FALLBACK_HTML = "<html><body><h1>JARVIS Mobile Bridge</h1><p>UI file not found. Run with desktop UI for full interface.</p></body></html>"
+
 @app.get("/")
 async def index():
-    html = (BASE_DIR / "jarvis_ui.html").read_text(encoding="utf-8")
+    try:
+        html = (BASE_DIR / "jarvis_ui.html").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return HTMLResponse(FALLBACK_HTML)
     html = html.replace(
         "</head>",
         """<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
@@ -48,8 +53,8 @@ async def receive_command(req: Request):
     body = await req.json()
     text = body.get("text", "")
     if text:
-        from ui import _global_command_queue
-        _global_command_queue.append(text)
+        from core.utils import global_command_queue
+        global_command_queue.append(text)
         return JSONResponse({"ok": True})
     return JSONResponse({"ok": False}, status_code=400)
 
@@ -59,7 +64,15 @@ async def websocket_endpoint(ws: WebSocket):
     ws_clients.add(ws)
     try:
         while True:
-            await ws.receive_text()
+            data = await ws.receive_text()
+            try:
+                msg = json.loads(data)
+                text = msg.get("text", "") or msg.get("command", "") or data
+            except json.JSONDecodeError:
+                text = data
+            if text:
+                from core.utils import global_command_queue
+                global_command_queue.append(text)
     except Exception:
         pass
     finally:

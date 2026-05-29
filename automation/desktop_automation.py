@@ -131,6 +131,7 @@ class DesktopAutomation:
     def click_on_screen(self, image_path: str, confidence: float = 0.8) -> bool:
         pos = self.locate_on_screen(image_path, confidence)
         if pos:
+            import pyautogui
             center = pyautogui.center(pos)
             return self.click(int(center.x), int(center.y))
         return False
@@ -173,7 +174,7 @@ class DesktopAutomation:
 
     def open_app(self, app_path: str) -> bool:
         try:
-            subprocess.Popen(app_path, shell=True)
+            subprocess.Popen(app_path, shell=False)
             return True
         except Exception as e:
             logger.error(f"open_app failed: {e}")
@@ -182,7 +183,7 @@ class DesktopAutomation:
     def run_command(self, command: str) -> tuple[int, str, str]:
         try:
             result = subprocess.run(
-                command, shell=True, capture_output=True, text=True, timeout=60
+                command, shell=False, capture_output=True, text=True, timeout=60
             )
             return result.returncode, result.stdout, result.stderr
         except subprocess.TimeoutExpired:

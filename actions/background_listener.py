@@ -73,7 +73,7 @@ def launch_jarvis():
 
 def on_claps_detected():
     if detector:
-        print("[Background] 👏 Palmas detectadas! Tentando abrir o Jarvis...")
+        print("[Background] [*] Palmas detectadas! Tentando abrir o Jarvis...")
     launch_jarvis()
 
 def start_background_listener():

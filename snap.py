@@ -12,4 +12,5 @@ async def snap():
         await page.screenshot(path="wa_screen.png")
         print("Screenshot saved to wa_screen.png")
 
-asyncio.run(snap())
+if __name__ == "__main__":
+    asyncio.run(snap())

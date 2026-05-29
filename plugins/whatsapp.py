@@ -34,6 +34,7 @@ class WhatsAppPlugin(BasePlugin):
         self._data_dir: str = ""
         self._headless: bool = False
         self._message_handler: Optional[callable] = None
+        self._poll_task: Optional[asyncio.Task] = None
 
     async def on_load(self):
         self._data_dir = self.config.get("whatsapp_data_dir", "")
@@ -89,7 +90,7 @@ class WhatsAppPlugin(BasePlugin):
                     logger.error("WhatsApp Web - could not detect chat list or QR code")
                     return False
 
-            asyncio.create_task(self._poll_messages())
+            self._poll_task = asyncio.create_task(self._poll_messages())
             return True
         except Exception as e:
             logger.error(f"Failed to connect WhatsApp: {e}")
@@ -98,6 +99,9 @@ class WhatsAppPlugin(BasePlugin):
 
     async def disconnect(self):
         self._connected = False
+        if self._poll_task and not self._poll_task.done():
+            self._poll_task.cancel()
+            self._poll_task = None
         if self._context:
             try:
                 await self._context.close()

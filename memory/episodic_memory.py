@@ -120,6 +120,7 @@ class EpisodicMemory:
                 "timestamp": episode.timestamp,
                 "importance": episode.importance,
                 "summary": episode.summary or "",
+                "context": episode.context or {},
             },
         )
 
@@ -137,8 +138,10 @@ Return a concise summary in Brazilian Portuguese (max 100 words):"""
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                response = loop.run_until_complete(pm.generate_async(prompt, temperature=0.3))
-                loop.close()
+                try:
+                    response = loop.run_until_complete(pm.generate_async(prompt, temperature=0.3))
+                finally:
+                    loop.close()
                 summary = response.text.strip()
                 for e in recent:
                     e.summary = summary[:200]
@@ -164,8 +167,10 @@ Session insights in Brazilian Portuguese (max 150 words):"""
             pm = get_manager()
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            response = loop.run_until_complete(pm.generate_async(prompt, temperature=0.3))
-            loop.close()
+            try:
+                response = loop.run_until_complete(pm.generate_async(prompt, temperature=0.3))
+            finally:
+                loop.close()
             summary = response.text.strip()
             self._vector.store(content=summary, store=MemoryStore.SUMMARIES, metadata={"type": "session_summary", "session_start": self._session_start})
         except Exception as e:

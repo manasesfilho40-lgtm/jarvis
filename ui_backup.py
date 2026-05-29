@@ -158,7 +158,17 @@ class JarvisUI(QObject):
                     self.on_text_command(cmd)
 
     def wait_for_api_key(self):
-        pass
+        from core.utils import BASE_DIR
+        import json
+        config_path = BASE_DIR / "config" / "api_keys.json"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                key = json.load(f).get("gemini_api_key", "")
+            if not key or key == "YOUR_GEMINI_API_KEY":
+                print("[JARVIS] API key nao configurada. Use o campo de texto para inserir sua chave Gemini.")
+                self.write_log("SYS: Insira sua chave Gemini no campo de texto para configurar.")
+        except Exception as e:
+            print(f"[JARVIS] Nao foi possivel ler api_keys.json: {e}")
 
     def write_log(self, text):
         is_user = False

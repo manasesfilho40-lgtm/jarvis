@@ -22,8 +22,6 @@ class TelegramPlugin(BasePlugin):
                 name="telegram",
                 version="1.0.0",
                 description="Telegram integration for JARVIS",
-                hooks=["on_message", "on_command"],
-                tools=["telegram_send"],
             )
         super().__init__(manifest)
         self._app: Optional[Application] = None

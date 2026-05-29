@@ -20,8 +20,11 @@ MODEL_PLANNER    = "gemini-2.5-flash"
 MODEL_WRITER     = "gemini-2.5-flash"
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)["gemini_api_key"]
+    except (KeyError, FileNotFoundError, json.JSONDecodeError):
+        return ""
 
 
 def _get_model(model_name: str):
@@ -221,7 +224,7 @@ Code for {file_path}:"""
         full_path.parent.mkdir(parents=True, exist_ok=True)
         full_path.write_text(code, encoding="utf-8")
 
-        print(f"[DevAgent] ✅ Written: {file_path} ({len(code)} chars)")
+        print(f"[DevAgent] [OK] Written: {file_path} ({len(code)} chars)")
         return code
 
     except Exception as e:
@@ -248,7 +251,7 @@ def _install_dependencies(dependencies: list[str], project_dir: Path) -> str:
     if not to_install:
         return f"All dependencies already installed: {', '.join(dependencies)}"
 
-    print(f"[DevAgent] 📦 Installing: {to_install}")
+    print(f"[DevAgent] [*] Installing: {to_install}")
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install"] + to_install,
@@ -274,19 +277,18 @@ def _open_vscode(project_dir: Path) -> bool:
         try:
             subprocess.Popen(
                 [cmd, str(project_dir)],
-                shell=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
             time.sleep(1.5)
-            print(f"[DevAgent] 💻 VSCode opened: {project_dir}")
+            print(f"[DevAgent] [*] VSCode opened: {project_dir}")
             return True
         except Exception:
             continue
     return False
 
 def _run_project(run_command: str, project_dir: Path, timeout: int = 30) -> str:
-    print(f"[DevAgent] 🚀 Running: {run_command}")
+    print(f"[DevAgent] [*] Running: {run_command}")
     try:
         parts = run_command.split()
         if parts[0].lower() == "python":
@@ -328,7 +330,7 @@ def _try_auto_install(error_output: str, project_dir: Path) -> bool:
         return False
 
     pkg = match.group(1).replace("_", "-").split(".")[0]
-    print(f"[DevAgent] 🔧 Auto-installing missing package: {pkg}")
+    print(f"[DevAgent] [*] Auto-installing missing package: {pkg}")
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", pkg],
@@ -420,12 +422,12 @@ Fixed code for {fix_path}:"""
             full_path.write_text(fixed, encoding="utf-8")
 
             updated_codes[fix_path] = fixed
-            print(f"[DevAgent] 🔧 Fixed: {fix_path}")
+            print(f"[DevAgent] [*] Fixed: {fix_path}")
 
         except Exception as e:
             if _is_rate_limit(e):
                 raise RateLimitError(str(e))
-            print(f"[DevAgent] ⚠️ Could not fix {fix_path}: {e}")
+            print(f"[DevAgent] [!]️ Could not fix {fix_path}: {e}")
 
     return updated_codes
 

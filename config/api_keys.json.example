@@ -1,5 +1,24 @@
 {
+  "_instrucoes": "Copie este arquivo para api_keys.json e preencha com suas chaves reais",
+  "_gemini_help": "Obtenha sua chave em https://aistudio.google.com/app/apikey",
   "gemini_api_key": "YOUR_GEMINI_API_KEY",
-  "os_system": "windows",
-  "apify_token": "YOUR_APIFY_TOKEN"
+  "gemini_api_keys": [
+    "YOUR_GEMINI_API_KEY_1",
+    "YOUR_GEMINI_API_KEY_2"
+  ],
+  "os_system": "",  # Deixe vazio para detectar automaticamente via platform.system()
+  "apify_token": "YOUR_APIFY_TOKEN",
+  "github_token": "YOUR_GITHUB_TOKEN",
+  "discord_token": "YOUR_DISCORD_BOT_TOKEN",
+  "discord_channel_id": "YOUR_DISCORD_CHANNEL_ID",
+  "telegram_token": "YOUR_TELEGRAM_BOT_TOKEN",
+  "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
+  "spotify_client_id": "YOUR_SPOTIFY_CLIENT_ID",
+  "spotify_client_secret": "YOUR_SPOTIFY_CLIENT_SECRET",
+  "email_address": "seu@email.com",
+  "email_password": "SUA_SENHA_OU_APP_PASSWORD",
+  "imap_server": "imap.gmail.com",
+  "smtp_server": "smtp.gmail.com",
+  "notion_token": "YOUR_NOTION_INTEGRATION_TOKEN",
+  "obsidian_vault_path": ""
 }

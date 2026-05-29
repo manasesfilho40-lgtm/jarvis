@@ -71,6 +71,7 @@ class FAISSMemory:
             "text": text,
             "metadata": metadata or {},
             "timestamp": time.time(),
+            "_embedding": embedding,
         }
         self._stores[store_name].append(entry)
 

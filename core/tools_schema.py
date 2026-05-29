@@ -95,7 +95,7 @@ TOOL_DECLARATIONS = [
     },
     {
         "name": "computer_settings",
-        "description": "Controls computer: volume, brightness, WiFi, shutdown, etc.",
+        "description": "Controls computer: volume, brightness, WiFi, sleep, etc.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
@@ -357,7 +357,7 @@ TOOL_DECLARATIONS = [
                 "action": {"type": "STRING", "description": "send | autonomous | guard"},
                 "target": {"type": "STRING", "description": "Contact name or phone with country code"},
                 "message": {"type": "STRING", "description": "Message text"},
-                "product": {"type": "STRING", "description": "Product name for autonomous"},
+                "product": {"type": "STRING", "description": "Product name for autonomous/guard mode"},
                 "timeout_minutes": {"type": "INTEGER", "description": "Guard mode timeout"}
             },
             "required": ["action", "target"]
@@ -451,6 +451,93 @@ TOOL_DECLARATIONS = [
         "parameters": {
             "type": "OBJECT",
             "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "shopping_search",
+        "description": "Busca produtos em lojas brasileiras (Mercado Livre, Magazine Luiza, Amazon) com filtros de frete grátis e promoção.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "query":        {"type": "STRING", "description": "Nome do produto a buscar"},
+                "max_price":    {"type": "NUMBER", "description": "Preço máximo em R$"},
+                "free_shipping":{"type": "BOOLEAN", "description": "Filtrar apenas frete grátis (padrão: true)"},
+                "promotion":    {"type": "BOOLEAN", "description": "Filtrar apenas promoções/descontos (padrão: true)"},
+                "store":        {"type": "STRING", "description": "mercadolivre | magazineluiza | amazon | all (padrão: all)"}
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "deep_research",
+        "description": "Pesquisa profunda multi-rodadas na web. Decompõe a pergunta em sub-tópicos, busca fontes, extrai conteúdo, identifica lacunas e gera relatório completo. Suporta análise de PDFs/documentos, crawling de links internos, monitoramento automático de tópicos, e execução em background com progresso.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {
+                    "type": "STRING",
+                    "description": "research (padrão) | compare | crawl | start_monitor | stop_monitor | status | monitor_status"
+                },
+                "query": {
+                    "type": "STRING",
+                    "description": "Pergunta ou tópico a pesquisar"
+                },
+                "depth": {
+                    "type": "INTEGER",
+                    "description": "Número de rodadas de aprofundamento (1-5). Padrão: 2"
+                },
+                "max_sources": {
+                    "type": "INTEGER",
+                    "description": "Máximo de fontes a consultar (1-30). Padrão: 10"
+                },
+                "save": {
+                    "type": "BOOLEAN",
+                    "description": "Salvar relatório em arquivo .md. Padrão: false"
+                },
+                "background": {
+                    "type": "BOOLEAN",
+                    "description": "Executar em background. Use get_research_status para acompanhar. Padrão: false"
+                },
+                "research_id": {
+                    "type": "STRING",
+                    "description": "ID da pesquisa para consultar status (usado com action=status)"
+                },
+                "file_paths": {
+                    "type": "ARRAY",
+                    "items": {"type": "STRING"},
+                    "description": "Caminhos de PDFs/documentos para analisar como fontes"
+                },
+                "items": {
+                    "type": "ARRAY",
+                    "items": {"type": "STRING"},
+                    "description": "Lista de itens para comparação (usado com action=compare)"
+                },
+                "aspect": {
+                    "type": "STRING",
+                    "description": "Aspecto para comparação: preço | specs | reviews | geral"
+                },
+                "crawl_depth": {
+                    "type": "INTEGER",
+                    "description": "Profundidade de crawling de links internos (1-3). Padrão: 1"
+                },
+                "topic": {
+                    "type": "STRING",
+                    "description": "Tópico para monitoramento automático (usado com action=start_monitor)"
+                },
+                "monitor_interval": {
+                    "type": "INTEGER",
+                    "description": "Intervalo em horas entre atualizações do monitor. Padrão: 6"
+                },
+                "monitor_id": {
+                    "type": "STRING",
+                    "description": "ID do monitor para parar (usado com action=stop_monitor)"
+                },
+                "format": {
+                    "type": "STRING",
+                    "description": "Formato do relatório: md | text. Padrão: md"
+                }
+            },
             "required": []
         }
     }

@@ -69,6 +69,7 @@ class HUDOverlay(QWidget):
         else:
             self._screen_width = 1920
             self._screen_height = 1080
+            logger.warning("No primary screen detected, using 1920x1080 fallback")
 
         self._panel_width = 380
         self._panel_height = self._screen_height - 100
@@ -96,6 +97,7 @@ class HUDOverlay(QWidget):
         self._timer.start(50)
 
         self._message_queue: queue.Queue = queue.Queue()
+        self._status_queue: queue.Queue = queue.Queue()
 
     def show_overlay(self):
         self.show()
@@ -126,13 +128,7 @@ class HUDOverlay(QWidget):
             self._thoughts = self._thoughts[:self._max_thoughts]
 
     def update_status(self, status: dict):
-        self._system_status = status
-        if "agents_active" in status:
-            self._active_agents = status["agents_active"]
-        if "current_phase" in status:
-            self._current_phase = status["current_phase"]
-        if "cycle_count" in status:
-            self._cycle_count = status["cycle_count"]
+        self._status_queue.put(status)
 
     def update_waveform(self, data: list[float]):
         self._waveform_data = (data + self._waveform_data)[:60]
@@ -144,6 +140,19 @@ class HUDOverlay(QWidget):
                 self._messages.append(msg)
                 if len(self._messages) > self._max_messages:
                     self._messages = self._messages[-self._max_messages:]
+            except queue.Empty:
+                break
+
+        while not self._status_queue.empty():
+            try:
+                status = self._status_queue.get_nowait()
+                self._system_status = status
+                if "agents_active" in status:
+                    self._active_agents = status["agents_active"]
+                if "current_phase" in status:
+                    self._current_phase = status["current_phase"]
+                if "cycle_count" in status:
+                    self._cycle_count = status["cycle_count"]
             except queue.Empty:
                 break
 
@@ -193,7 +202,7 @@ class HUDOverlay(QWidget):
         phase_color = phase_colors.get(self._current_phase, QColor(0, 180, 255))
 
         painter.setPen(phase_color)
-        painter.drawText(15, 28, f"J.A.R.V.I.S  •  Cycle #{self._cycle_count}")
+        painter.drawText(15, 28, f"J.A.R.V.I.S  *  Cycle #{self._cycle_count}")
 
         painter.setPen(QColor(100, 180, 255, 150))
         font.setPointSize(9)

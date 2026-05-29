@@ -12,6 +12,24 @@ from typing import Any, Optional
 logger = logging.getLogger("vector_memory")
 
 
+@dataclass
+class MemoryEntry:
+    id: str = ""
+    content: str = ""
+    metadata: dict = field(default_factory=dict)
+    score: float = 0.0
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "content": self.content,
+            "metadata": self.metadata,
+            "score": self.score,
+            "timestamp": self.timestamp,
+        }
+
+
 try:
     import chromadb
     from chromadb.config import Settings
@@ -19,38 +37,6 @@ try:
 except ImportError:
     HAS_CHROMADB = False
     logger.warning("ChromaDB not installed. Vector memory will use file-based fallback.")
-
-
-class MemoryStore(Enum):
-    EPISODIC = "episodic"
-    SEMANTIC = "semantic"
-    WORKING = "working"
-    CONVERSATIONS = "conversations"
-    OBSERVATIONS = "observations"
-    SUMMARIES = "summaries"
-    PROJECTS = "projects"
-    USER_PROFILE = "user_profile"
-    EXPERIENCES = "experiences"
-    SKILLS = "skills"
-
-
-@dataclass
-class MemoryEntry:
-    id: str
-    content: str
-    metadata: dict = field(default_factory=dict)
-    timestamp: float = field(default_factory=time.time)
-    embedding: Optional[list[float]] = None
-    score: float = 0.0
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "content": self.content,
-            "metadata": self.metadata,
-            "timestamp": self.timestamp,
-            "score": self.score,
-        }
 
 
 class MemoryStore(str, Enum):
@@ -127,7 +113,10 @@ class VectorMemory:
                     with open(fallback_file, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         for item in data:
-                            self._fallback_store[key].append(MemoryEntry(**item))
+                            try:
+                                self._fallback_store[key].append(MemoryEntry(**item))
+                            except TypeError:
+                                logger.warning(f"Skipping invalid entry in {key}: {item.get('id', '?')}")
                 except Exception as e:
                     logger.error(f"Failed to load fallback store {key}: {e}")
         return self._fallback_store[key]

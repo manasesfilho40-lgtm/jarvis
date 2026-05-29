@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 import struct
+import threading
 import time
 from typing import Callable
 from pathlib import Path
@@ -66,14 +67,17 @@ class ClapDetector:
         self._clap_count = 0
         self._enabled = True
         self._prev_rms = 0.0
+        self._lock = threading.Lock()
 
     @property
     def enabled(self) -> bool:
-        return self._enabled
+        with self._lock:
+            return self._enabled
 
     @enabled.setter
     def enabled(self, value: bool):
-        self._enabled = value
+        with self._lock:
+            self._enabled = value
 
     def start(self):
         """Start listening for claps."""
@@ -89,42 +93,43 @@ class ClapDetector:
 
     def process_audio_chunk(self, raw: bytes):
         """Process a chunk of audio data externally (passive mode)."""
-        if not self._enabled:
-            self._prev_rms = 0.0
-            return
+        with self._lock:
+            if not self._enabled:
+                self._prev_rms = 0.0
+                return
 
-        rms = self._rms(raw)
-        now = time.time()
+            rms = self._rms(raw)
+            now = time.time()
 
-        # Check cooldown
-        if now - self._last_trigger_time < self.cooldown:
+            # Check cooldown
+            if now - self._last_trigger_time < self.cooldown:
+                self._prev_rms = rms
+                return
+
+            if self._is_clap(rms, self._prev_rms):
+                time_since_last = now - self._last_clap_time
+                self._log(f"[ClapDetector] [*] Palma! (Contagem: {self._clap_count + 1}) RMS={rms:.4f}")
+
+                if time_since_last < self.double_clap_window and self._clap_count >= 1:
+                    # Double clap detected!
+                    self._log("[ClapDetector] [!] Dupla palma detectada! DISPARANDO...")
+                    self._clap_count = 0
+                    self._last_trigger_time = now
+                    try:
+                        self.on_clap()
+                    except Exception as e:
+                        self._log(f"[ClapDetector] Erro no callback: {e}")
+                else:
+                    # First clap
+                    self._clap_count = 1
+                    self._last_clap_time = now
+
+            # Reset clap count if window expired
+            if now - self._last_clap_time > self.double_clap_window:
+                if self._clap_count > 0:
+                    self._clap_count = 0
+
             self._prev_rms = rms
-            return
-
-        if self._is_clap(rms, self._prev_rms):
-            time_since_last = now - self._last_clap_time
-            self._log(f"[ClapDetector] 👏 Palma! (Contagem: {self._clap_count + 1}) RMS={rms:.4f}")
-
-            if time_since_last < self.double_clap_window and self._clap_count >= 1:
-                # Double clap detected!
-                self._log("[ClapDetector] ✨ Dupla palma detectada! DISPARANDO...")
-                self._clap_count = 0
-                self._last_trigger_time = now
-                try:
-                    self.on_clap()
-                except Exception as e:
-                    self._log(f"[ClapDetector] Erro no callback: {e}")
-            else:
-                # First clap
-                self._clap_count = 1
-                self._last_clap_time = now
-
-        # Reset clap count if window expired
-        if now - self._last_clap_time > self.double_clap_window:
-            if self._clap_count > 0:
-                self._clap_count = 0
-
-        self._prev_rms = rms
 
     def _rms(self, data: bytes) -> float:
         """Calculate Root Mean Square of audio data (int16)."""
@@ -157,7 +162,7 @@ class ClapDetector:
             log_path = Path(__file__).resolve().parent.parent / "clap_detector.log"
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
-        except:
+        except Exception:
             pass
 
 

@@ -108,6 +108,7 @@ def _is_valid_youtube_url(url: str) -> bool:
 
 
 def _ask_for_url(prompt_text: str = "YouTube video URL:") -> str | None:
+    root = None
     try:
         import tkinter as tk
         from tkinter import simpledialog
@@ -122,6 +123,14 @@ def _ask_for_url(prompt_text: str = "YouTube video URL:") -> str | None:
     except Exception as e:
         print(f"[YouTube] URL dialog failed: {e}")
         return None
+    finally:
+        if root:
+            try:
+                import tkinter as tk
+                if root is not tk._default_root:
+                    root.destroy()
+            except Exception:
+                pass
 
 
 def _get_transcript(video_id: str) -> str | None:
@@ -131,7 +140,7 @@ def _get_transcript(video_id: str) -> str | None:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         transcript      = None
 
-        lang_priority = ["en", "tr", "de", "fr", "es", "it", "pt", "ru", "ja", "ko", "ar", "zh"]
+        lang_priority = ["pt", "pt-BR", "en", "tr", "de", "fr", "es", "it", "ru", "ja", "ko", "ar", "zh"]
 
         try:
             transcript = transcript_list.find_manually_created_transcript(lang_priority)
@@ -285,7 +294,7 @@ def _handle_play(parameters: dict, player) -> str:
         _open_url(video_url)
         return f"Reproduzindo: {query}"
 
-    print(f"[YouTube] Scrape failed, opening filtered search page")
+    print("[YouTube] Scrape failed, opening filtered search page")
     fallback_url = (
         f"https://www.youtube.com/results"
         f"?search_query={quote_plus(query)}"

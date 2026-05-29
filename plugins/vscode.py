@@ -59,7 +59,7 @@ class VSCodePlugin(BasePlugin):
             return "VSCode não encontrado"
         try:
             abs_path = os.path.abspath(filepath)
-            subprocess.Popen([self._code_path, abs_path], shell=True)
+            subprocess.Popen([self._code_path, abs_path])
             return f"Opened {abs_path} in VSCode"
         except Exception as e:
             return f"Error opening file: {e}"
@@ -69,7 +69,7 @@ class VSCodePlugin(BasePlugin):
             return "VSCode não encontrado"
         try:
             abs_path = os.path.abspath(folder_path)
-            subprocess.Popen([self._code_path, abs_path], shell=True)
+            subprocess.Popen([self._code_path, abs_path])
             self._current_project = abs_path
             return f"Opened folder {abs_path} in VSCode"
         except Exception as e:
@@ -81,7 +81,6 @@ class VSCodePlugin(BasePlugin):
         try:
             subprocess.Popen(
                 [self._code_path, "--command", command],
-                shell=True,
             )
             return f"Executed VSCode command: {command}"
         except Exception as e:
@@ -107,8 +106,8 @@ class VSCodePlugin(BasePlugin):
             projects.append(self._current_project)
         try:
             result = subprocess.run(
-                "tasklist /FI \"IMAGENAME eq Code.exe\" /NH",
-                capture_output=True, text=True, shell=True, timeout=5,
+                ["tasklist", "/FI", "IMAGENAME eq Code.exe", "/NH"],
+                capture_output=True, text=True, timeout=5,
             )
             if "Code.exe" in result.stdout:
                 logger.info("VSCode is running")

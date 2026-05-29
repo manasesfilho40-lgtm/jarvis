@@ -23,7 +23,7 @@ def install_startup():
     shell = Dispatch('WScript.Shell')
     shortcut = shell.CreateShortCut(str(shortcut_path))
     # Argumentos para rodar o script sem console (pythonw)
-    shortcut.Targetpath = python_exe.replace("python.exe", "pythonw.exe")
+    shortcut.Targetpath = os.path.join(os.path.dirname(python_exe), "pythonw.exe")
     shortcut.Arguments = f'"{target_script}"'
     shortcut.WorkingDirectory = str(base_dir)
     shortcut.IconLocation = python_exe # Usa o ícone do python

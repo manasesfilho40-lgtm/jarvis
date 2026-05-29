@@ -139,7 +139,7 @@ def apify_leads(parameters: dict, **kwargs) -> str:
     print(f"[Apify] Starting actor {actor_id} in background thread with input: {input_data}")
     _set_status("running", f"Actor: {actor_id}, Query: {input_data}")
 
-    t = threading.Thread(target=_run, args=(token, actor_id, input_data), daemon=False)
+    t = threading.Thread(target=_run, args=(token, actor_id, input_data), daemon=True)
     t.start()
 
     return f"Apify actor '{actor_id}' iniciado em background. Os leads serao adicionados ao CRM automaticamente quando o scrape terminar."

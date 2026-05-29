@@ -4,6 +4,7 @@ import asyncio
 import base64
 import io
 import json
+import platform
 import re
 import sys
 import threading
@@ -59,7 +60,7 @@ def _save_config_key(key: str, value) -> None:
         cfg[key] = value
         _CONFIG_PATH.write_text(json.dumps(cfg, indent=4), encoding="utf-8")
     except Exception as e:
-        print(f"[Vision] ⚠️  Could not save config key '{key}': {e}")
+        print(f"[Vision] [!]️  Could not save config key '{key}': {e}")
 
 
 def _get_api_key() -> str:
@@ -70,7 +71,9 @@ def _get_api_key() -> str:
 
 
 def _get_os() -> str:
-    return _load_config().get("os_system", "windows").lower()
+    _os_map = {"Windows": "windows", "Darwin": "mac", "Linux": "linux"}
+    real_os = _os_map.get(platform.system(), "windows")
+    return _load_config().get("os_system", real_os).lower()
 
 _LIVE_MODEL         = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 _CHANNELS           = 1
@@ -102,7 +105,7 @@ def _compress(img_bytes: bytes, source_format: str = "PNG") -> tuple[bytes, str]
         img.save(buf, format="JPEG", quality=_JPEG_Q, optimize=False)
         return buf.getvalue(), "image/jpeg"
     except Exception as e:
-        print(f"[Vision] ⚠️  Image compress failed: {e}")
+        print(f"[Vision] [!]️  Image compress failed: {e}")
         return img_bytes, f"image/{source_format.lower()}"
 
 def _capture_screen() -> tuple[bytes, str]:
@@ -151,15 +154,15 @@ def _probe_camera(index: int, backend: int, warmup: int = 5) -> bool:
 def _detect_camera_index() -> int:
 
     backend = _cv2_backend()
-    print("[Vision] 🔍 Auto-detecting camera...")
+    print("[Vision] [*] Auto-detecting camera...")
     for idx in range(6):
         if _probe_camera(idx, backend):
-            print(f"[Vision] ✅ Camera found at index {idx}")
+            print(f"[Vision] [OK] Camera found at index {idx}")
             _save_config_key("camera_index", idx)
             return idx
-        print(f"[Vision] ⚠️  Camera index {idx}: no usable frame")
+        print(f"[Vision] [!]️  Camera index {idx}: no usable frame")
 
-    print("[Vision] ⚠️  No camera found — defaulting to index 0")
+    print("[Vision] [!]️  No camera found — defaulting to index 0")
     _save_config_key("camera_index", 0)
     return 0
 
@@ -229,11 +232,11 @@ class _VisionSession:
 
         if not self._ready_evt.wait(timeout=timeout):
             raise RuntimeError(f"Vision session did not connect within {timeout}s.")
-        print("[Vision] ✅ Session ready")
+        print("[Vision] [OK] Session ready")
 
     def analyze(self, image_bytes: bytes, mime_type: str, user_text: str) -> None:
         if not self._loop or not self._out_queue:
-            print("[Vision] ⚠️  Session not started — dropping request")
+            print("[Vision] [!]️  Session not started — dropping request")
             return
         asyncio.run_coroutine_threadsafe(
             self._out_queue.put((image_bytes, mime_type, user_text)),
@@ -272,14 +275,14 @@ class _VisionSession:
         backoff = 2.0
         while True:
             try:
-                print("[Vision] 🔌 Connecting...")
+                print("[Vision] [*] Connecting...")
                 async with client.aio.live.connect(
                     model=_LIVE_MODEL, config=config
                 ) as session:
                     self._session = session
                     self._ready_evt.set()
                     backoff = 2.0  
-                    print("[Vision] ✅ Connected")
+                    print("[Vision] [OK] Connected")
 
                     async with asyncio.TaskGroup() as tg:
                         tg.create_task(self._send_loop())
@@ -288,7 +291,7 @@ class _VisionSession:
 
             except* Exception as eg:
                 for exc in eg.exceptions:
-                    print(f"[Vision] ⚠️  Session error: {exc}")
+                    print(f"[Vision] [!]️  Session error: {exc}")
             finally:
                 self._session = None
                 self._ready_evt.clear()
@@ -302,7 +305,7 @@ class _VisionSession:
         while True:
             image_bytes, mime_type, user_text = await self._out_queue.get()
             if not self._session:
-                print("[Vision] ⚠️  No session — dropping image")
+                print("[Vision] [!]️  No session — dropping image")
                 continue
             try:
                 b64 = base64.b64encode(image_bytes).decode("ascii")
@@ -315,9 +318,9 @@ class _VisionSession:
                     },
                     turn_complete=True,
                 )
-                print(f"[Vision] 📤 Sent {len(image_bytes):,} bytes — '{user_text[:60]}'")
+                print(f"[Vision] [*] Sent {len(image_bytes):,} bytes — '{user_text[:60]}'")
             except Exception as e:
-                print(f"[Vision] ⚠️  Send error: {e}")
+                print(f"[Vision] [!]️  Send error: {e}")
 
     async def _recv_loop(self) -> None:
         transcript: list[str] = []
@@ -340,11 +343,11 @@ class _VisionSession:
                         full = re.sub(r"\s+", " ", " ".join(transcript)).strip()
                         if full:
                             self._player.write_log(f"Jarvis: {full}")
-                            print(f"[Vision] 💬 {full}")
+                            print(f"[Vision] [*] {full}")
                     transcript = []
 
         except Exception as e:
-            print(f"[Vision] ⚠️  Recv error: {e}")
+            print(f"[Vision] [!]️  Recv error: {e}")
             raise  
 
     async def _play_loop(self) -> None:
@@ -360,7 +363,7 @@ class _VisionSession:
                 chunk = await self._audio_in.get()
                 await asyncio.to_thread(stream.write, chunk)
         except Exception as e:
-            print(f"[Vision] ❌ Play error: {e}")
+            print(f"[Vision] [!] Play error: {e}")
             raise
         finally:
             stream.stop()
@@ -393,7 +396,7 @@ def screen_process(
     angle     = params.get("angle", "screen").lower().strip()
 
     if not user_text:
-        print("[Vision] ⚠️  No question provided — aborting")
+        print("[Vision] [!]️  No question provided — aborting")
         return False
 
     print(f"[Vision] ▶ angle={angle!r}  question='{user_text[:80]}'")
@@ -401,18 +404,18 @@ def screen_process(
     try:
         _ensure_session(player=player)
     except Exception as e:
-        print(f"[Vision] ❌ Could not start session: {e}")
+        print(f"[Vision] [!] Could not start session: {e}")
         return False
 
     try:
         if angle == "camera":
             image_bytes, mime_type = _capture_camera()
-            print(f"[Vision] 📷 Camera: {len(image_bytes):,} bytes")
+            print(f"[Vision] [*] Camera: {len(image_bytes):,} bytes")
         else:
             image_bytes, mime_type = _capture_screen()
-            print(f"[Vision] 🖥️  Screen: {len(image_bytes):,} bytes")
+            print(f"[Vision] [*]️  Screen: {len(image_bytes):,} bytes")
     except Exception as e:
-        print(f"[Vision] ❌ Capture error: {e}")
+        print(f"[Vision] [!] Capture error: {e}")
         return False
 
     _session.analyze(image_bytes, mime_type, user_text)
@@ -423,7 +426,7 @@ def warmup_session(player=None) -> None:
     try:
         _ensure_session(player=player)
     except Exception as e:
-        print(f"[Vision] ⚠️  Warmup failed: {e}")
+        print(f"[Vision] [!]️  Warmup failed: {e}")
 
 if __name__ == "__main__":
     print("[TEST] screen_processor.py")

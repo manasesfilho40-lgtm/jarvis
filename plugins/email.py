@@ -158,7 +158,9 @@ class EmailPlugin(BasePlugin):
             mail.select("INBOX")
             status, message_ids = mail.search(None, f'BODY "{query}"')
             if status != "OK":
-                return mail.search(None, f'SUBJECT "{query}"')
+                status, message_ids = mail.search(None, f'SUBJECT "{query}"')
+                if status != "OK":
+                    return []
             ids = message_ids[0].split() if message_ids[0] else []
             ids = ids[-limit:]
             messages = []

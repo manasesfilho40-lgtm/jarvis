@@ -193,36 +193,6 @@ class ProviderManager:
         self._routing_rules.append((condition, provider_name, priority))
         self._routing_rules.sort(key=lambda x: -x[2])
 
-    def register(self, name: str, provider: BaseProvider):
-        self._providers[name] = provider
-        self._models[name] = provider.config
-        if self._default_provider is None:
-            self._default_provider = name
-        self._logger.info(f"Registered provider: {name} ({provider.config.model})")
-
-    def unregister(self, name: str):
-        self._providers.pop(name, None)
-        self._models.pop(name, None)
-        if self._default_provider == name:
-            self._default_provider = next(iter(self._providers)) if self._providers else None
-
-    def get_provider(self, name: str) -> Optional[BaseProvider]:
-        return self._providers.get(name)
-
-    def get_model(self, name: str) -> Optional[ModelConfig]:
-        return self._models.get(name)
-
-    def set_default(self, name: str):
-        if name in self._providers:
-            self._default_provider = name
-
-    def add_fallback(self, *names: str):
-        self._fallback_chain = list(names)
-
-    def add_routing_rule(self, condition, provider_name: str, priority: int = 0):
-        self._routing_rules.append((condition, provider_name, priority))
-        self._routing_rules.sort(key=lambda x: -x[2])
-
     def _select_provider(self, prompt: str = "", task_type: str = "") -> str:
         if self._routing_rules:
             for condition, provider_name, priority in self._routing_rules:
@@ -248,7 +218,7 @@ class ProviderManager:
                 prov = self._providers[name]
                 if prov._check_rate_limit():
                     return name
-        return preferred
+        return preferred if preferred in self._providers else (self._fallback_chain[0] if self._fallback_chain else preferred)
 
     def _select_with_load_balance(self, task_type: str = "") -> str:
         candidates = [self._default_provider] + self._fallback_chain if self._default_provider else list(self._providers.keys())
@@ -257,7 +227,9 @@ class ProviderManager:
             raise RuntimeError("No providers registered")
         candidates = [n for n in candidates if self._providers[n]._check_rate_limit()]
         if not candidates:
-            candidates = [n for n in candidates if n in self._providers]
+            candidates = [n for n in self._providers if self._providers[n]._check_rate_limit()]
+        if not candidates:
+            candidates = list(self._providers.keys())
         idx = self._load_balancer_index.get(task_type, 0) % len(candidates)
         self._load_balancer_index[task_type] = idx + 1
         return candidates[idx]

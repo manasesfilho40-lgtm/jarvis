@@ -20,28 +20,8 @@ from playwright.async_api import (
 )
 _OS = platform.system()   # "Windows" | "Darwin" | "Linux"
 
-import builtins
-import sys
-def print(*args, **kwargs):
-    if sys.stdout is None:
-        return
-    safe_args = []
-    try:
-        enc = getattr(sys.stdout, 'encoding', None) or "utf-8"
-    except Exception:
-        enc = "utf-8"
-    for arg in args:
-        if isinstance(arg, str):
-            try:
-                safe_args.append(arg.encode(enc, errors="replace").decode(enc))
-            except Exception:
-                safe_args.append(arg)
-        else:
-            safe_args.append(arg)
-    try:
-        builtins.print(*safe_args, **kwargs)
-    except Exception:
-        pass
+import logging
+_logger = logging.getLogger("browser_control")
 
 
 def _normalize_url(url: str) -> str:
@@ -299,7 +279,7 @@ def _resolve_browser(name: str) -> dict | None:
     if spec.get("special") == "opera_windows":
         exe = _find_opera_windows()
         if not exe:
-            print(f"[Browser] ⚠️  Opera executable not found on Windows.")
+            print("[Browser] [!]️  Opera executable not found on Windows.")
         return {"engine": engine, "exe": exe, "channel": channel}
 
     for b in bins:
@@ -438,7 +418,7 @@ class _BrowserSession:
 
             await asyncio.sleep(0.5)  
             self._page = await self._context.new_page()
-            print(f"[Browser] Firefox launched")
+            print("[Browser] Firefox launched")
             return
 
         if engine_name == "webkit":
@@ -453,7 +433,7 @@ class _BrowserSession:
             self._context = await engine_obj.launch_persistent_context(safari_profile, **kwargs)
             await asyncio.sleep(0.5)
             self._page = await self._context.new_page()
-            print(f"[Browser] Safari launched")
+            print("[Browser] Safari launched")
             return
 
         profile = _real_profile_dir(self.browser_name)
@@ -787,7 +767,7 @@ class _SessionRegistry:
             lines = []
             for name in self._sessions:
                 marker = " [active]" if name == self._active_browser else ""
-                lines.append(f"  • {name}{marker}")
+                lines.append(f"  * {name}{marker}")
             return "Open browsers:\n" + "\n".join(lines)
 
 

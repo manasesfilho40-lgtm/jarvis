@@ -1,6 +1,5 @@
 import json
 import re
-from core.utils import API_CONFIG_PATH
 
 
 PLANNER_PROMPT = """You are the planning module of MARK XXV, a personal AI assistant.
@@ -353,87 +352,7 @@ def _fallback_plan(goal: str) -> dict:
             "step": 1, "tool": "conversation",
             "description": f"Conversar com JARVIS: {goal[:80]}",
             "parameters": {"user_message": goal, "response": ""},
-            "critical": False
-        }]
-    }
-
-    # ── Tool intents ──
-    intent_map = [
-        # open_app
-        (r'(abr[aeiir]+|open|lanc[aeiir]+|execut[aeiir]+|inici[aeiir]+)',
-         lambda: ("open_app", {"app_name": _extract_app_name(goal)})),
-
-        # web_search
-        (r'(pesquis[aeiir]+|busca[rz]|procur[aeiir]+|google|search|pesquisa)',
-
-         lambda: ("web_search", {"query": goal})),
-
-        # whatsapp
-        (r'(whatsapp|whats\s*app|mensagem|enviar\s+mensagem|mandar\s+mensagem)',
-         lambda: ("whatsapp_web", {"action": "send", "target": "lead", "message": goal})),
-
-        # reminder / alarm
-        (r'(lembrete|lembr[ae]|alarm[aei]|notific[ai]|despertador)',
-         lambda: ("reminder", {"date": "", "time": "", "message": goal})),
-
-        # weather
-        (r'(clima|tempo|temperatura|weather|previs[ãa]o\s+do\s+tempo)',
-         lambda: ("weather_report", {"city": _extract_city(goal)})),
-
-        # spotify / music
-        (r'(m[uú]sica|spotify|toc[aeiir]+|play|can[cç][aã]o|som)',
-         lambda: ("open_app", {"app_name": "Spotify", "play": True})),
-
-        # file / save
-        (r'(arquiv[ao]|salv[aeiir]+|documento|cri[aeiir]+\s+arquiv|[cr]ri[aeiir]+\s+documento)',
-         lambda: ("file_controller", {"action": "write", "path": "desktop", "name": _extract_filename(goal), "content": goal})),
-
-        # memory
-        (r'(mem[óo]ria|lembr[ae]r\s+de|guarda[rz])',
-         lambda: ("manage_memory", {"action": "store", "key": goal[:30], "value": goal})),
-
-        # weather explicit city
-        (r'(clima|tempo|temperatura)\s+(em|de|do|da|para)\s+(.+)',
-         lambda: ("weather_report", {"city": re.search(r'(clima|tempo|temperatura)\s+(em|de|do|da|para)\s+(.+)', goal_lower).group(3).strip().capitalize()})),
-
-        # game / steam
-        (r'(jogo|game|steam|epic|atualiz[aeiir]+\s+jogos)',
-         lambda: ("game_updater", {"action": "update", "platform": "both"})),
-
-        # CRM / leads
-        (r'(crm|lead|cliente|contato)',
-         lambda: ("manage_crm", {"action": "list", "status": "new", "limit": 10})),
-
-        # clock / time
-        (r'(hor[áa]rio|rel[óo]gio|que\s+horas|hora\s+atual)',
-         lambda: ("web_search", {"query": goal})),
-
-        # computer settings
-        (r'(configur[aeiir]+|ajust[aeiir]+|defini[cç][ãa]o|resolu[cç][ãa]o|brilho|volume|wifi|bluetooth)',
-         lambda: ("computer_settings", {"action": "apply", "description": goal})),
-    ]
-
-    for pattern, builder in intent_map:
-        if re.search(pattern, goal_lower):
-            tool, params = builder()
-            print(f"[Planner] [FALLBACK] Intent matched: {tool}")
-            return {
-                "goal": goal,
-                "steps": [{
-                    "step": 1, "tool": tool,
-                    "description": f"{tool}: {goal[:80]}",
-                    "parameters": params, "critical": True
-                }]
-            }
-
-    print(f"[Planner] [CONVERSATION] No tool matched, routing to chat: {goal[:80]}")
-    return {
-        "goal": goal,
-        "steps": [{
-            "step": 1, "tool": "conversation",
-            "description": f"Conversar com JARVIS: {goal[:80]}",
-            "parameters": {"user_message": goal, "response": ""},
-            "critical": False
+"critical": False
         }]
     }
 

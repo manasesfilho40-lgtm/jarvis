@@ -120,9 +120,12 @@ def _register_code_dev_loop():
 def run_browser_search_speak(query: str):
     wf = engine.create_workflow(f"Search: {query[:30]}", [])
     wf.context["query"] = query
-    wf.context["summary"] = f"Search results for: {query}"
+    wf.context["summary"] = ""
     wf.steps = [
-        WorkflowStep(type=WorkflowStepType.BROWSER_NAVIGATE, params={"url": "about:blank"}, name=f"nav_{wf.workflow_id[:8]}"),
+        WorkflowStep(type=WorkflowStepType.BROWSER_NAVIGATE, params={"url": f"https://www.google.com/search?q={query}"}, name=f"search_{wf.workflow_id[:8]}"),
+        WorkflowStep(type=WorkflowStepType.EXTRACT_TEXT, params={"selector": "body"}, name=f"extract_{wf.workflow_id[:8]}"),
+        WorkflowStep(type=WorkflowStepType.THINK, params={"prompt": f"Summarize search results for: {query}"}, name=f"think_{wf.workflow_id[:8]}"),
+        WorkflowStep(type=WorkflowStepType.VOICE_SPEAK, params={"text": "{{summary}}"}, name=f"speak_{wf.workflow_id[:8]}"),
     ]
     return wf
 

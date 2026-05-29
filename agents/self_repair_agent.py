@@ -89,7 +89,7 @@ class SelfRepairAgent(BaseAgent):
             await self._attempt_auto_repair()
         return self._diagnostics
 
-    async def observe(self) -> dict:
+    async def get_status(self) -> dict:
         return {
             "last_repair_time": self._last_repair_time,
             "diagnostics_count": len(self._diagnostics),

@@ -126,7 +126,8 @@ class VoicePipeline:
         logger.info("Voice listening stopped")
 
     def _listen_loop(self):
-        audio_buffer = []
+        from collections import deque
+        audio_buffer: deque = deque()
         silence_frames = 0
 
         def callback(indata, frames, time_info, status):
@@ -155,14 +156,16 @@ class VoicePipeline:
 
             while self._is_listening:
                 if audio_buffer and silence_frames > self._vad.silence_frames:
-                    audio_np = np.concatenate(audio_buffer) if len(audio_buffer) > 1 else audio_buffer[0]
-                    audio_buffer.clear()
+                    frames_list = [audio_buffer.popleft() for _ in range(len(audio_buffer))]
+                    audio_np = np.concatenate(frames_list) if len(frames_list) > 1 else frames_list[0]
                     silence_frames = 0
+                else:
+                    audio_np = None
 
-                    if len(audio_np) > 0:
-                        text = self._transcribe(audio_np)
-                        if text and self._on_transcription:
-                            self._on_transcription(text)
+                if audio_np is not None and len(audio_np) > 0:
+                    text = self._transcribe(audio_np)
+                    if text and self._on_transcription:
+                        self._on_transcription(text)
 
                 time.sleep(0.05)
 
@@ -284,7 +287,18 @@ class VoicePipeline:
             communicate = edge_tts.Communicate(text, voice="pt-BR-AntonioNeural")
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
                 temp_path = f.name
-            asyncio.run(communicate.save(temp_path))
+
+            async def _save_tts():
+                await communicate.save(temp_path)
+
+            try:
+                loop = asyncio.get_running_loop()
+                if threading.current_thread() is threading.main_thread():
+                    asyncio.run_coroutine_threadsafe(_save_tts(), loop).result(timeout=30)
+                else:
+                    asyncio.run(_save_tts())
+            except RuntimeError:
+                asyncio.run(_save_tts())
             if HAS_SOUNDFILE:
                 data, sr = sf.read(temp_path, dtype="int16")
                 sd.play(data, sr)

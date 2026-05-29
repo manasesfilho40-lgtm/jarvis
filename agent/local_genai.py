@@ -20,7 +20,7 @@ def _load_settings() -> dict:
         if settings_path.exists():
             with open(settings_path, "r", encoding="utf-8") as f:
                 return json.load(f)
-    except:
+    except Exception:
         pass
     return {}
 
@@ -120,7 +120,7 @@ class GenerativeModel:
                 try:
                     return self._generate_via_gemini(prompt, api_key)
                 except Exception as e:
-                    print(f"[LocalGenAI] ⚠️ Gemini failed: {e}.")
+                    print(f"[LocalGenAI] [!]️ Gemini failed: {e}.")
                     try:
                         from core.api_rotator import rotate_api_key
                         rotate_api_key()
@@ -128,9 +128,9 @@ class GenerativeModel:
                         pass
                     print("[LocalGenAI] Falling back to local Llama 3...")
             else:
-                print("[LocalGenAI] ⚠️ Gemini API key not found. Routing to local Llama...")
+                print("[LocalGenAI] [!]️ Gemini API key not found. Routing to local Llama...")
                 
-        print(f"[LocalGenAI] 🦙 Routing to LOCAL BRAIN for prompt: '{str(prompt)[:60]}...'")
+        print(f"[LocalGenAI] [*] Routing to LOCAL BRAIN for prompt: '{str(prompt)[:60]}...'")
         return self._generate_via_llama(prompt)
 
     def _generate_via_gemini(self, prompt, api_key):
@@ -240,7 +240,7 @@ Return ONLY raw python code. No explanation, no markdown, no backticks."""
                 return MockResponse(reply)
         except Exception as e:
             if model_name != "llama3.2:3b":
-                print(f"[LocalGenAI] ⚠️ {model_name} failed: {e}. Retrying with llama3.2:3b...")
+                print(f"[LocalGenAI] [!]️ {model_name} failed: {e}. Retrying with llama3.2:3b...")
                 return self._generate_via_llama(prompt, model_name="llama3.2:3b")
             print(f"[LocalGenAI Error] Failed to generate content via Ollama: {e}")
             raise RuntimeError(f"Ollama generation failed: {e}")
